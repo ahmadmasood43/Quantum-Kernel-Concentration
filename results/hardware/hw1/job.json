@@ -1,0 +1,21 @@
+{
+ "job_id": "dbq68tgqtr0c738fd5qg",
+ "backend": "ibm_marrakesh",
+ "shots": 1000,
+ "submitted_utc": "2026-11-11T12:49:59.263422+00:00",
+ "n_circuits": 495,
+ "usage_before": {
+  "plan_id": "850b21a7-71de-4e53-9441-1abdd202f35d",
+  "usage_consumed_seconds": 8,
+  "usage_consumed_ru": 0.121448,
+  "usage_period": {
+   "start_time": "2026-10-14T12:49:55.886Z",
+   "end_time": "2026-11-11T12:49:55.886Z"
+  },
+  "usage_limit_seconds": 600,
+  "usage_limit_ru": 10,
+  "usage_limit_reached": false,
+  "usage_remaining_seconds": 592,
+  "usage_remaining_ru": 9.878551999999999
+ }
+}
