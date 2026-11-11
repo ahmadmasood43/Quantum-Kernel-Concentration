@@ -45,14 +45,17 @@ def _spins(n: int) -> np.ndarray:
     return 1.0 - 2.0 * bits
 
 
-def feature_states(X: np.ndarray, bandwidth: float, reps: int = 2) -> np.ndarray:
-    """Statevectors psi(lambda * x) for each row of X, shape (m, 2**n)."""
+def feature_states(X: np.ndarray, bandwidth: float, reps: int = 2, entangle: bool = True) -> np.ndarray:
+    """Statevectors psi(lambda * x) for each row of X, shape (m, 2**n).
+
+    entangle=False drops the ZZ terms (product feature map, ablation).
+    """
     Z = bandwidth * np.asarray(X, dtype=np.float64)
     m, n = Z.shape
     s = _spins(n)
     # phase(b) = sum_j z_j s_j(b) + sum_j z_j z_{j+1} s_j(b) s_{j+1}(b)
     phase = Z @ s
-    if n > 1:
+    if entangle and n > 1:
         phase += (Z[:, :-1] * Z[:, 1:]) @ (s[:-1] * s[1:])
     diag = np.exp(1j * phase)
     # First layer: H^{(x)n}|0...0> is the uniform superposition, so skip the transform.
@@ -67,31 +70,33 @@ _STATE_CACHE: dict[tuple, np.ndarray] = {}
 _STATE_CACHE_MAX = 4
 
 
-def _cached_states(X: np.ndarray, bandwidth: float, reps: int) -> np.ndarray:
+def _cached_states(X: np.ndarray, bandwidth: float, reps: int, entangle: bool) -> np.ndarray:
     """feature_states with a small cache keyed on the exact input bytes.
 
     Nested CV computes K(train, train) and then K(val, train) with the same
     training rows; the cache avoids preparing the training states twice.
     """
     X = np.ascontiguousarray(X, dtype=np.float64)
-    key = (hashlib.blake2b(X.tobytes(), digest_size=16).hexdigest(), X.shape, float(bandwidth), reps)
+    key = (hashlib.blake2b(X.tobytes(), digest_size=16).hexdigest(), X.shape, float(bandwidth), reps, entangle)
     S = _STATE_CACHE.get(key)
     if S is None:
-        S = feature_states(X, bandwidth, reps)
+        S = feature_states(X, bandwidth, reps, entangle)
         if len(_STATE_CACHE) >= _STATE_CACHE_MAX:
             _STATE_CACHE.pop(next(iter(_STATE_CACHE)))
         _STATE_CACHE[key] = S
     return S
 
 
-def quantum_kernel(XA: np.ndarray, XB: np.ndarray | None, bandwidth: float, reps: int = 2) -> np.ndarray:
+def quantum_kernel(
+    XA: np.ndarray, XB: np.ndarray | None, bandwidth: float, reps: int = 2, entangle: bool = True
+) -> np.ndarray:
     """Exact (noise-free, infinite-shot) fidelity kernel matrix."""
-    SA = _cached_states(XA, bandwidth, reps)
-    SB = SA if XB is None else _cached_states(XB, bandwidth, reps)
+    SA = _cached_states(XA, bandwidth, reps, entangle)
+    SB = SA if XB is None else _cached_states(XB, bandwidth, reps, entangle)
     return np.abs(SA.conj() @ SB.T) ** 2
 
 
-def feature_map_circuit(x: np.ndarray, bandwidth: float, reps: int = 2) -> QuantumCircuit:
+def feature_map_circuit(x: np.ndarray, bandwidth: float, reps: int = 2, entangle: bool = True) -> QuantumCircuit:
     """The same feature map as a Qiskit circuit (used for cross-checks and hardware).
 
     exp(i a Z) = RZ(-2a) and exp(i a Z Z) = RZZ(-2a), each up to a global phase.
@@ -103,7 +108,7 @@ def feature_map_circuit(x: np.ndarray, bandwidth: float, reps: int = 2) -> Quant
         qc.h(range(n))
         for j in range(n):
             qc.rz(-2.0 * z[j], j)
-        for j in range(n - 1):
+        for j in range(n - 1 if entangle else 0):
             qc.rzz(-2.0 * z[j] * z[j + 1], j, j + 1)
     return qc
 

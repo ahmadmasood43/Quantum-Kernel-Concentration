@@ -30,3 +30,19 @@ def test_states_are_normalized_and_kernel_is_valid():
 def test_zero_bandwidth_limit_gives_constant_kernel():
     X = np.random.default_rng(1).standard_normal((10, 4))
     np.testing.assert_allclose(quantum_kernel(X, None, 1e-8), 1.0, atol=1e-10)
+
+
+@pytest.mark.parametrize("entangle", [True, False])
+def test_product_and_entangled_maps_match_qiskit(entangle):
+    X = np.random.default_rng(7).standard_normal((3, 4))
+    K = quantum_kernel(X, None, 0.8, reps=3, entangle=entangle)
+    svs = [Statevector(feature_map_circuit(x, 0.8, reps=3, entangle=entangle)) for x in X]
+    K_ref = np.array([[abs(a.inner(b)) ** 2 for b in svs] for a in svs])
+    np.testing.assert_allclose(K, K_ref, atol=1e-10)
+
+
+def test_product_map_kernel_factorizes_over_qubits():
+    X = np.random.default_rng(8).standard_normal((5, 3))
+    K = quantum_kernel(X, None, 0.6, reps=2, entangle=False)
+    K_prod = np.prod([quantum_kernel(X[:, [j]], None, 0.6, reps=2) for j in range(3)], axis=0)
+    np.testing.assert_allclose(K, K_prod, atol=1e-12)

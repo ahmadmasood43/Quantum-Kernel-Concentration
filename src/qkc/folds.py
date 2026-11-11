@@ -29,7 +29,11 @@ def folds_path(dataset: str, seed: int) -> Path:
 
 
 def load_or_create_folds(dataset: str, seed: int, y: np.ndarray) -> tuple[list[dict], str]:
-    """Return folds and the SHA-256 of the fold file (stored with every result)."""
+    """Return folds and the SHA-256 of the fold file (stored with every result).
+
+    `dataset` is the fold-file stem, e.g. "fmnist" or "fmnist_m200" for a
+    different subsample size (training-set-size ablation).
+    """
     p = folds_path(dataset, seed)
     if not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)

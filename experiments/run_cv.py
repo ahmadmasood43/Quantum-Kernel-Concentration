@@ -83,10 +83,10 @@ def run_model(model, X, y, folds, n, seed, use_pca):
     if model == "linear":
         kfn, grid = (lambda A, B, h: A @ (A if B is None else B).T), np.array([1.0])
     elif model == "rbf":
-        kfn, grid = (lambda A, B, g: rbf_kernel(A, B, g / A.shape[1])), config.RBF_G_GRID
+        kfn, grid = (lambda A, B, g: rbf_kernel(A, B, g / A.shape[1])), config.RBF_G_GRID_V1
     elif model == "quantum":
         kfn = lambda A, B, lam: quantum_kernel(A, B, lam, config.FEATURE_MAP_REPS)
-        grid = config.LAMBDA_GRID
+        grid = config.LAMBDA_GRID_V1
     else:
         raise ValueError(model)
     # linear kernel: rows of K_te are test points against train points
@@ -120,7 +120,7 @@ def main():
         df.to_csv(stem.with_suffix(".csv"), index=False)
         meta = {
             "dataset": args.dataset, "model": model, "qubits": args.qubits, "seeds": args.seeds,
-            "lambda_grid": config.LAMBDA_GRID.tolist(), "rbf_g_grid": config.RBF_G_GRID.tolist(),
+            "lambda_grid": config.LAMBDA_GRID_V1.tolist(), "rbf_g_grid": config.RBF_G_GRID_V1.tolist(),
             "C_grid": config.C_GRID.tolist(), "feature_map_reps": config.FEATURE_MAP_REPS,
             "n_per_class": config.N_PER_CLASS, "fmnist_classes": config.FMNIST_CLASSES,
             "synthetic_separation": SYNTH_SEPARATION, "fold_file_sha256": fold_hashes,
