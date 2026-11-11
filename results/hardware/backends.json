@@ -1,0 +1,20 @@
+{
+  "queried_at_utc": "2026-11-11T10:13:05.144510+00:00",
+  "backends": [
+    {
+      "name": "ibm_marrakesh",
+      "num_qubits": 156,
+      "pending_jobs": 1
+    },
+    {
+      "name": "ibm_fez",
+      "num_qubits": 156,
+      "pending_jobs": 6
+    },
+    {
+      "name": "ibm_kingston",
+      "num_qubits": 156,
+      "pending_jobs": 101
+    }
+  ]
+}

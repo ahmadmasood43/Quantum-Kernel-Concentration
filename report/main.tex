@@ -1,0 +1,80 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+
+\title{Kernel Concentration and Bandwidth Scaling\\in Quantum Kernel Methods}
+
+\author{\IEEEauthorblockN{Muhammad Ahmad Masood and Muhammad Waqas}
+\IEEEauthorblockA{AI 631 Quantum Machine Learning, Fall 2026 --- Project \#5}}
+
+\maketitle
+
+\begin{abstract}
+% DRAFT: written after the results are in.
+\end{abstract}
+
+\section{Introduction}
+Quantum kernel methods map classical data into quantum states and use overlaps between states as a kernel for a classical learner, such as a support vector machine (SVM)~\cite{havlicek2019supervised,schuld2019feature}. Their appeal is that the feature space is an exponentially large Hilbert space. That same size is also a liability: as the number of qubits $n$ grows, the overlaps between states encoding different inputs can become exponentially small and nearly identical for every pair of inputs. When this happens, the kernel matrix approaches the identity and a model trained on it generalizes poorly~\cite{huang2021power}. Thanasilp \emph{et al.}\ called this effect \emph{exponential concentration}. They identified expressivity, entanglement, global measurements, and hardware noise as its sources, and they showed that a polynomial number of measurement shots is then not enough to tell kernel values apart~\cite{thanasilp2024concentration}.
+
+A simple countermeasure is to scale the input features by a bandwidth $\lambda<1$ before encoding them. Shaydulin and Wild showed numerically that tuning this bandwidth can restore generalization for quantum kernels with many qubits~\cite{shaydulin2022bandwidth}, and Canatar \emph{et al.}\ analyzed how bandwidth controls generalization~\cite{canatar2022bandwidth}. Two practical questions remain. First, the kernel must be estimated from a finite number of shots on real hardware, and reducing $\lambda$ also moves every kernel value toward $1$, so there may be no bandwidth at which the kernel is both informative and measurable. Second, a strongly scaled-down quantum kernel may behave much like a classical kernel, so any benefit has to be measured against an equally well-tuned classical baseline.
+
+\textbf{Research question.} How fast do quantum kernel values concentrate as the qubit count grows, and does a bandwidth hyperparameter restore learnability?
+
+\textbf{Hypotheses.} \emph{H1:} at fixed $\lambda=1$, the off-diagonal kernel variance decreases exponentially in $n$. \emph{H2:} there is a decreasing bandwidth schedule $\lambda^{*}(n)$ under which the off-diagonal variance stays above the shot-noise level at a fixed shot budget, and test accuracy at $n=16$ stays statistically above that obtained at $\lambda=1$.
+
+\textbf{Falsifier.} We reject H2 in our setting if, at $n=16$ and $N=10^{4}$ shots, every $\lambda$ in the search grid gives an off-diagonal spread that cannot be distinguished from the shot-noise spread (variance-ratio test, $\alpha=0.05$), or if the best tuned $\lambda$ does not give significantly higher test accuracy than $\lambda=1$ across fixed outer folds.
+
+\textbf{Contributions.} We (i) measure off-diagonal kernel variance and test accuracy from 2 to 16 qubits over a bandwidth grid in exact simulation, (ii) determine where concentration becomes indistinguishable from finite-shot noise, (iii) repeat the variance measurements under a noise model derived from IBM device calibration data and on IBM quantum hardware at selected qubit counts, and (iv) compare every quantum result with an RBF-kernel SVM tuned with the same search protocol.
+
+\section{Background}
+% DRAFT: fidelity kernels; concentration results of [Thanasilp et al.]; bandwidth results of [Shaydulin & Wild, Canatar et al.]; finite-shot estimation.
+
+\section{Methods}
+
+\subsection{Data}
+We use Fashion-MNIST~\cite{xiao2017fashion}, restricted to the binary pair T-shirt/top (label 0) vs.\ Pullover (label 2). For each of five seeds we draw a class-balanced subsample of 150 images per class without replacement from the official training split, giving 300 points per seed. To isolate the effect of $n$ and $\lambda$ from image structure, we also use a synthetic dataset: two isotropic Gaussian classes in $\mathbb{R}^{n}$ with means $\pm\frac{s}{2}\mathbf{u}$, where $\mathbf{u}$ is a random unit vector and $s=2$. Its Bayes-optimal accuracy is $\Phi(1)\approx0.841$ for every $n$.
+
+\subsection{Folds and preprocessing}
+The course's NB11 starter notebook was not available to us, so we implemented equivalent fixed folds, leakage-free preprocessing, baselines, ablations, and noise sweeps ourselves. For each seed, five stratified outer folds are generated once, and each outer training set is split into three stratified inner folds. The fold indices are stored on disk, every model reads the same files, and each result records a hash of its fold file. Preprocessing consists of standardization, PCA to $n$ components (Fashion-MNIST only), and a second standardization that gives every component unit variance. It is fit on the training rows of each inner or outer split and only then applied to the held-out rows. A unit test corrupts the held-out rows and checks that neither the fitted transforms nor the selected hyperparameters change.
+
+\subsection{Quantum kernel}
+Each input $\mathbf{x}\in\mathbb{R}^{n}$ is encoded on $n$ qubits as $\mathbf{z}=\lambda\mathbf{x}$ using an IQP-type $ZZ$ feature map~\cite{havlicek2019supervised} with $r=2$ layers and nearest-neighbour entanglement on a line:
+\begin{align}
+U(\mathbf{z}) &= \prod_{\ell=1}^{r} D(\mathbf{z})\,H^{\otimes n},\\
+D(\mathbf{z}) &= \exp\Bigl(i\sum_{j=1}^{n} z_j Z_j + i\sum_{j=1}^{n-1} z_j z_{j+1} Z_j Z_{j+1}\Bigr).
+\end{align}
+The kernel is the state fidelity $k_\lambda(\mathbf{x},\mathbf{x}')=|\langle0^{n}|U^{\dagger}(\lambda\mathbf{x}')U(\lambda\mathbf{x})|0^{n}\rangle|^{2}$. Each layer has $n$ Hadamard gates, $n$ single-qubit $R_Z$ rotations, and $n-1$ two-qubit $R_{ZZ}$ rotations. The compute--uncompute circuit $U^{\dagger}(\lambda\mathbf{x}')U(\lambda\mathbf{x})$ therefore contains $4(n-1)$ $R_{ZZ}$ gates, for example 60 at $n=16$. Device-specific depths and two-qubit gate counts after transpilation are reported with the hardware results.
+
+\textbf{Exact simulation.} Because $D$ is diagonal in the computational basis, we compute the statevectors exactly with a batched Walsh--Hadamard transform followed by an elementwise phase. Gram matrices are then computed from inner products of the statevectors. We validate this implementation against Qiskit statevector simulation of the same circuit; the two agree to within $10^{-10}$ for $n\in\{1,2,3,5\}$ and $\lambda\in\{0.05,0.7,2\}$.
+
+\textbf{Concentration measure.} For a Gram matrix $K$ over $m$ points we report the mean and the unbiased sample variance of the $m(m-1)/2$ off-diagonal entries.
+
+\textbf{Finite-shot estimation.} Each entry is estimated as the frequency of the all-zero outcome in $N$ shots of the compute--uncompute circuit, i.e.\ a binomial draw with success probability $k$, so its variance is $k(1-k)/N$.
+% DRAFT: sampling procedure, N grid, and variance-ratio test to be finalized with the Week 2 results.
+
+\textbf{Noisy simulation and hardware.}
+% DRAFT: Aer noise model from the backend calibration snapshot at run time; error-rate scaling sweep; IBM backend, transpilation settings, shots, job IDs.
+
+\subsection{Model selection and baselines}
+All kernel models are SVMs with precomputed kernels. Hyperparameters are chosen by nested cross-validation: for each outer fold, the pair $(h, C)$, with $h$ the kernel bandwidth and $C\in\{0.1,1,10,100\}$, is selected by mean inner-fold validation accuracy. The model is then refit on the full outer training set and scored once on the outer test set. The quantum bandwidth $\lambda$ is searched over 10 log-spaced values in $[0.01,\pi]$. The RBF baseline $k(\mathbf{x},\mathbf{x}')=\exp(-\gamma\|\mathbf{x}-\mathbf{x}'\|^{2})$ uses $\gamma=g/n$, with $g$ searched over 10 log-spaced values in $[10^{-3},10]$: the same grid size and the same selection protocol as $\lambda$. Because each component has unit variance, $g=1$ corresponds to scikit-learn's default \texttt{gamma="scale"}. We record whenever the selected bandwidth lies on a grid edge. Further baselines are a linear-kernel SVM, $\ell_2$-regularized logistic regression with $C$ tuned on the same grid, and the majority-class rate. We report the mean and standard deviation of test accuracy over five outer folds and five seeds.
+
+\section{Results}
+% DRAFT
+
+\section{Discussion}
+% DRAFT
+
+\section{Conclusion}
+% DRAFT
+
+\section*{Author Contributions}
+% DRAFT
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

@@ -43,7 +43,7 @@ Quantum kernel methods embed data into quantum states and use state overlaps as 
 
 \textbf{Simulation regimes.} (a) Exact statevector kernels. (b) Finite-shot kernels obtained by binomial sampling with $N\in\{10^{2},\dots,10^{5}\}$. (c) Noisy simulation with a noise model built from an IBM backend's calibration data, including a sweep that scales the error rates. (d) Hardware.
 
-\textbf{Hardware.} Compute--uncompute circuits for a small set of data points at two to three qubit counts (tentatively $n\in\{2,4,6\}$) and two bandwidths. The circuits are transpiled for, and run on, an IBM quantum processor. The same transpiled circuits, data points, and shot counts are then simulated with a noise model built from that backend's calibration at run time, so that the off-diagonal variances can be compared directly. We will record the backend name, job IDs, shots, transpilation settings, and calibration data. The experiment size will be fixed once account access and QPU allocation are confirmed.
+\textbf{Hardware.} Compute--uncompute circuits for a small set of data points at two to three qubit counts (tentatively $n\in\{2,4,6\}$) and two bandwidths. The circuits are transpiled for, and run on, an IBM quantum processor. The same transpiled circuits, data points, and shot counts are then simulated with a noise model built from that backend's calibration at run time, so that the off-diagonal variances can be compared directly. We will record the backend name, job IDs, shots, transpilation settings, and calibration data. Our IBM Quantum account (Open plan) provides 600~s of QPU time per 28-day period, so the number of circuits and shots will be sized to fit within that allocation.
 
 \section{Baselines and Evaluation}
 All models share fixed, stratified outer folds (5 folds) stored on disk, with inner cross-validation for model selection. Baselines: an RBF-kernel SVM whose $\gamma$ is searched on a logarithmic grid of the same size and with the same selection protocol as $\lambda$, a linear SVM, logistic regression, and the majority-class rate. We report the mean and standard deviation of test accuracy over outer folds and seeds, off-diagonal variance with bootstrap confidence intervals, and fitted decay rates of $\sigma^{2}_{\lambda}(n)$. We will report cases where the classical baseline outperforms the quantum kernel.
@@ -56,7 +56,7 @@ All models share fixed, stratified outer folds (5 folds) stored on disk, with in
 \toprule
 Due & Deliverables \\
 \midrule
-Synopsis & This document; software environment; IBM account access verified. \\
+Synopsis & This document; software environment; IBM account access (done). \\
 Nov 15 & Data pipeline, fixed folds, leakage tests, classical baselines, first statevector kernel; Introduction and Methods drafts; code on GitHub. \\
 Nov 22 & Full 2--16 qubit sweep; finite-shot analysis; noise-model runs and noise sweep; ablations (feature-map repetitions, entangling vs.\ product map, training-set size); draft Results. \\
 Nov 29 & IBM hardware runs and matched noise-model comparison; slides. \\
