@@ -144,6 +144,7 @@ def sweep_fold(
 def select_tuned(df, group_cols):
     """Tuned-h results: within each group, pick the h with the highest inner
     accuracy (ties -> smallest h). Uses inner-CV accuracy only, never test."""
-    df = df.sort_values(group_cols + ["h"])
+    # reset the index: idxmax returns labels, and concatenated shards repeat them
+    df = df.sort_values(group_cols + ["h"]).reset_index(drop=True)
     idx = df.groupby(group_cols)["inner_acc"].idxmax()
     return df.loc[idx]

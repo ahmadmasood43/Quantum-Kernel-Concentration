@@ -63,3 +63,10 @@ def test_sweep_fold_runs_and_reports_every_h_and_shot():
     exact = [r for r in recs if not np.isfinite(r["shots"])]
     assert all(np.isnan(r["disp_p"]) for r in exact)
     assert all(0 <= r["test_acc"] <= 1 for r in recs)
+
+
+def test_select_tuned_is_correct_with_duplicate_index_labels():
+    a = pd.DataFrame({"g": [0, 0], "h": [0.1, 0.2], "inner_acc": [0.9, 0.5], "test_acc": [0.8, 0.1]})
+    b = pd.DataFrame({"g": [1, 1], "h": [0.1, 0.2], "inner_acc": [0.5, 0.9], "test_acc": [0.2, 0.7]})
+    picked = select_tuned(pd.concat([a, b]), ["g"])  # index labels 0,1,0,1
+    assert len(picked) == 2 and picked["test_acc"].tolist() == [0.8, 0.7]
