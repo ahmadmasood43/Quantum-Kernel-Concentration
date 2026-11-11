@@ -6,8 +6,17 @@ Steps (each writes into results/hardware/<tag>/):
            diagonal, transpile against the backend's live target, and save the
            ISA circuits (QPY), their depth / 2Q counts, the design, a
            calibration snapshot, and an estimate of QPU time. No QPU time used.
-  submit   Check the account's remaining QPU allocation, then submit one
-           SamplerV2 job with every circuit. USES QPU TIME.
+  preflight  Run the exact saved ISA circuits locally (free) and refuse to
+           pass unless: the circuit file is complete and consistent; an ideal
+           simulation reproduces the exact kernel values within shot noise and
+           returns 1 on every diagonal; the calibrated noise model degrades the
+           diagonals beyond readout error alone (gates were not compiled away);
+           the analysis runs on the simulated counts; and the projected QPU time
+           (scaled by the cost measured on the pilot) fits the remaining
+           allocation with a reserve.
+  submit   Requires a passed preflight on byte-identical circuits, the same
+           shot count, and --confirm; re-checks the live allocation; then
+           submits one SamplerV2 job with every circuit. USES QPU TIME.
   fetch    Wait for the job, save raw counts and job metrics, snapshot the
            calibration at the job's run time, and sample the same ISA circuits
            with the same shot count under the noise model built from that
@@ -19,12 +28,14 @@ device. Its outputs go to results/hardware/dryrun_<tag>/ and are labelled
 FAKE; they are pipeline checks only and never hardware results.
 
     .venv/bin/python experiments/hardware_run.py prepare --backend ibm_marrakesh --tag hw1
-    .venv/bin/python experiments/hardware_run.py submit  --tag hw1 --shots 2000
+    .venv/bin/python experiments/hardware_run.py preflight --tag hw1 --shots 1000
+    .venv/bin/python experiments/hardware_run.py submit  --tag hw1 --shots 1000 --confirm
     .venv/bin/python experiments/hardware_run.py fetch   --tag hw1
     .venv/bin/python experiments/hardware_run.py analyze --tag hw1
 """
 
 import argparse
+import hashlib
 import json
 import subprocess
 from datetime import datetime, timezone
@@ -113,6 +124,117 @@ def _load(out: Path):
     return design, circuits
 
 
+REP_DELAY_DEFAULT = 250e-6
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _naive_estimate(stats: pd.DataFrame, shots: int, rep_delay: float = REP_DELAY_DEFAULT) -> float:
+    return shots * float((stats.duration_s + rep_delay).sum())
+
+
+def _cost_factor() -> tuple[float, str]:
+    """Measured QPU charge / naive estimate, from completed real runs (pilot first)."""
+    best = None
+    for d in sorted((RESULTS / "hardware").iterdir()):
+        mfile, sfile, jfile = d / "job_metrics.json", d / "isa_stats.csv", d / "job.json"
+        if d.name.startswith("dryrun_") or not (mfile.exists() and sfile.exists() and jfile.exists()):
+            continue
+        charged = (json.loads(mfile.read_text()).get("usage") or {}).get("qpu_charge_time_seconds")
+        shots = json.loads(jfile.read_text()).get("shots")
+        if charged and shots:
+            f = charged / _naive_estimate(pd.read_csv(sfile), shots)
+            best = (f, d.name) if best is None or f > best[0] else best  # most pessimistic
+    return best if best else (2.0, "no completed run; default 2.0")
+
+
+def cmd_preflight(args):
+    out = tag_dir(args.tag, args.fake)
+    design, circuits = _load(out)
+    stats = pd.read_csv(out / "isa_stats.csv")
+    cal = json.loads((out / "calibration_prepare.json").read_text())
+    pairs = [tuple(p) for p in design["pairs"]]
+    checks, ok = {}, True
+
+    def check(name, cond, detail):
+        nonlocal ok
+        checks[name] = {"pass": bool(cond), "detail": detail}
+        ok &= bool(cond)
+        print(f"  [{'PASS' if cond else 'FAIL'}] {name}: {detail}")
+
+    expected = sum(b["count"] for b in design["blocks"])
+    check("circuit_count", len(circuits) == expected == len(stats), f"{len(circuits)} circuits, design {expected}, stats {len(stats)}")
+    widths_ok = all(circuits[b["first"] + c].num_clbits == b["n"] for b in design["blocks"] for c in range(b["count"]))
+    check("measured_bits", widths_ok, "every circuit measures exactly n classical bits")
+    diag = stats[stats.i == stats.j]
+    off = stats[stats.i != stats.j]
+    gates_kept = (diag.groupby("n").n_2q.min() >= off.groupby("n").n_2q.min() - 4).all() and (diag.n_2q > 0).all()
+    check("diagonal_gates_kept", gates_kept, "diagonal circuits keep their 2Q gates: " +
+          ", ".join(f"n={n}: {int(v)}" for n, v in diag.groupby("n").n_2q.min().items()))
+
+    shots = args.shots
+    ideal = AerSimulator(noise_model=build_noise_model(cal, 0.0), seed_simulator=args.seed).run(circuits, shots=shots).result()
+    noisy = AerSimulator(noise_model=build_noise_model(cal, 1.0), seed_simulator=args.seed + 1).run(circuits, shots=shots).result()
+    zmax, diag_ideal, rows = 0.0, [], []
+    for b in design["blocks"]:
+        n = b["n"]
+        for c, (i, j) in enumerate(pairs):
+            idx = b["first"] + c
+            k = stats.k_exact.iloc[idx]
+            p_i = p_zero(ideal.get_counts(idx), n)
+            p_n = p_zero(noisy.get_counts(idx), n)
+            zmax = max(zmax, abs(p_i - k) / np.sqrt(max(k * (1 - k), 1e-4) / shots))
+            if i == j:
+                diag_ideal.append(p_i)
+            phys = [int(q) for q in str(stats.physical_qubits.iloc[idx]).strip("[]").split(",")][:n]
+            ro_only = float(np.prod([1 - (cal["qubits"][q]["readout_error"] or 0) for q in phys]))
+            rows.append({"n": n, "lam": b["lam"], "diag": i == j, "p_noisy": p_n, "ro_only": ro_only})
+    check("ideal_matches_exact", zmax < 5.0, f"max |p_ideal - k_exact| = {zmax:.2f} shot-noise SDs (limit 5)")
+    check("ideal_diagonal_is_one", all(v == 1.0 for v in diag_ideal), f"{len(diag_ideal)} diagonal circuits, min {min(diag_ideal):.4f}")
+
+    r = pd.DataFrame(rows)
+    detail, gate_noise_ok = [], True
+    for n, g in r[r.diag].groupby("n"):
+        ro_only = float(g.ro_only.mean())  # P(all-zero) if only readout error acted, per-circuit qubits
+        dm = float(g.p_noisy.mean())
+        detail.append(f"n={n}: diag {dm:.3f} vs readout-only {ro_only:.3f}")
+        if n >= 4:
+            gate_noise_ok &= dm < ro_only
+    check("noise_model_degrades_diagonal_beyond_readout", gate_noise_ok, "; ".join(detail))
+
+    try:
+        for b in design["blocks"]:
+            Kh = np.eye(design["m"])
+            for c, (i, j) in enumerate(pairs):
+                Kh[i, j] = Kh[j, i] = p_zero(noisy.get_counts(b["first"] + c), b["n"])
+            spread_stats(Kh[np.triu_indices(design["m"], 1)], shots)
+            bootstrap_excess_var(Kh, shots, n_boot=200)
+        check("analysis_runs", True, "spread statistics and bootstrap computed on simulated counts")
+    except Exception as e:  # pragma: no cover
+        check("analysis_runs", False, repr(e))
+
+    factor, source = _cost_factor()
+    naive = _naive_estimate(stats, shots)
+    projected = naive * factor
+    remaining = None
+    if not args.fake:
+        _, service = get_backend(design["backend"], False)
+        remaining = service.usage().get("usage_remaining_seconds")
+    fits = remaining is None or remaining - projected >= args.reserve
+    check("qpu_budget", fits, f"naive {naive:.0f} s x measured cost factor {factor:.2f} ({source}) = {projected:.0f} s projected; "
+          f"remaining {remaining} s; reserve {args.reserve:.0f} s")
+
+    report = {"passed": ok, "checked_utc": now(), "shots": shots, "qpy_sha256": _sha256(out / "circuits.qpy"),
+              "projected_qpu_s": projected, "cost_factor": factor, "cost_factor_source": source,
+              "remaining_at_check_s": remaining, "checks": checks}
+    (out / "preflight.json").write_text(json.dumps(report, indent=1))
+    print(f"PREFLIGHT {'PASSED' if ok else 'FAILED'} -> {out / 'preflight.json'}")
+    if not ok:
+        raise SystemExit(1)
+
+
 def cmd_submit(args):
     out = tag_dir(args.tag, args.fake)
     if (out / "job.json").exists():
@@ -129,11 +251,25 @@ def cmd_submit(args):
                                                    "submitted_utc": now()}, indent=1))
         print(f"FAKE run complete: {out}")
         return
+    pf_path = out / "preflight.json"
+    if not pf_path.exists():
+        raise SystemExit("No preflight.json: run `preflight` first.")
+    pf = json.loads(pf_path.read_text())
+    if not pf.get("passed"):
+        raise SystemExit("Preflight did not pass; not submitting.")
+    if pf["qpy_sha256"] != _sha256(out / "circuits.qpy"):
+        raise SystemExit("circuits.qpy changed since preflight; re-run preflight.")
+    if pf["shots"] != args.shots:
+        raise SystemExit(f"Preflight was run for {pf['shots']} shots, not {args.shots}; re-run preflight.")
     usage = service.usage()
+    usage.pop("instance_id", None)  # account identifier: keep it out of the public repo
     remaining = usage.get("usage_remaining_seconds")
-    print(f"QPU allocation remaining: {remaining} s (period {usage.get('usage_period')})")
-    if remaining is not None and remaining < args.min_remaining:
-        raise SystemExit(f"Only {remaining} s left (< --min-remaining {args.min_remaining}); not submitting.")
+    projected = pf["projected_qpu_s"]
+    print(f"QPU allocation remaining: {remaining} s; projected for this job: {projected:.0f} s; reserve {args.reserve:.0f} s")
+    if remaining is not None and remaining - projected < args.reserve:
+        raise SystemExit("Projected usage would cut into the reserve; not submitting.")
+    if not args.confirm:
+        raise SystemExit("Dry check only. Add --confirm to submit (this USES QPU TIME).")
     from qiskit_ibm_runtime import SamplerV2
 
     sampler = SamplerV2(mode=backend)
@@ -220,7 +356,7 @@ def cmd_analyze(args):
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("prepare", "submit", "fetch", "analyze"):
+    for name in ("prepare", "preflight", "submit", "fetch", "analyze"):
         sp = sub.add_parser(name)
         sp.add_argument("--tag", required=True)
         sp.add_argument("--fake", action="store_true")
@@ -230,11 +366,14 @@ def main():
             sp.add_argument("--qubits", nargs="+", type=int, default=[2, 4, 6])
             sp.add_argument("--lambdas", nargs="+", type=float, default=[0.0625, 0.25, 1.0])
             sp.add_argument("--m", type=int, default=10)
-        if name == "submit":
+        if name in ("preflight", "submit"):
             sp.add_argument("--shots", type=int, default=1000)
-            sp.add_argument("--min-remaining", type=float, default=120.0)
+            sp.add_argument("--reserve", type=float, default=120.0, help="seconds of QPU allocation to keep unused")
+        if name == "submit":
+            sp.add_argument("--confirm", action="store_true", help="actually submit (uses QPU time)")
     args = p.parse_args()
-    {"prepare": cmd_prepare, "submit": cmd_submit, "fetch": cmd_fetch, "analyze": cmd_analyze}[args.cmd](args)
+    {"prepare": cmd_prepare, "preflight": cmd_preflight, "submit": cmd_submit, "fetch": cmd_fetch,
+     "analyze": cmd_analyze}[args.cmd](args)
 
 
 if __name__ == "__main__":

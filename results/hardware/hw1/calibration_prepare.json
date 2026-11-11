@@ -1,6 +1,6 @@
 {
  "backend": "ibm_marrakesh",
- "snapshot_utc": "2026-11-11T12:25:59.120894+00:00",
+ "snapshot_utc": "2026-11-11T12:31:12.853529+00:00",
  "calibration_last_update": "2026-11-11T15:07:21+05:00",
  "num_qubits": 156,
  "basis_gates": [

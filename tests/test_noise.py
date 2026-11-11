@@ -74,3 +74,17 @@ def test_bootstrap_ci_contains_true_spread():
     true = K[np.triu_indices(m, 1)].var(ddof=1)
     lo, hi = bootstrap_excess_var(Kh, N, n_boot=500)
     assert lo < true < hi
+
+
+def test_diagonal_circuit_is_not_compiled_away_and_barriers_are_not_counted():
+    from qkc.hwexp import isa_stats
+
+    be = FakeMarrakesh()
+    pm = generate_preset_pass_manager(optimization_level=3, backend=be, seed_transpiler=0)
+    x, x2 = np.random.default_rng(4).standard_normal((2, 4))
+    diag = isa_stats(pm.run(kernel_circuit(x, x, 0.5)))
+    off = isa_stats(pm.run(kernel_circuit(x, x2, 0.5)))
+    assert diag["n_cz"] > 0 and diag["n_2q"] == diag["n_cz"]
+    assert abs(diag["n_cz"] - off["n_cz"]) <= 4  # same structure up to routing differences
+    two = isa_stats(pm.run(kernel_circuit(x[:2], x[:2], 0.5)))
+    assert two["n_2q"] == two["n_cz"]  # the 2-qubit barrier is not counted as a gate

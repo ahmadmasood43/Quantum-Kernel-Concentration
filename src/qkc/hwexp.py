@@ -44,7 +44,16 @@ def pair_list(m: int, include_diagonal: bool = True) -> list[tuple[int, int]]:
 
 
 def kernel_circuit(xi, xj, bandwidth: float, reps: int = 2) -> QuantumCircuit:
-    qc = feature_map_circuit(xi, bandwidth, reps).compose(feature_map_circuit(xj, bandwidth, reps).inverse())
+    """Compute-uncompute circuit for k(x_i, x_j).
+
+    The barrier stops the transpiler from cancelling U(x) against U^dagger(x):
+    without it, every diagonal circuit compiles to a bare measurement and
+    probes only readout error. With it, diagonal and off-diagonal circuits
+    have the same gate structure, so diagonals measure the full device noise.
+    """
+    qc = feature_map_circuit(xi, bandwidth, reps)
+    qc.barrier()
+    qc.compose(feature_map_circuit(xj, bandwidth, reps).inverse(), inplace=True)
     qc.measure_all()
     return qc
 
@@ -53,10 +62,14 @@ def isa_stats(isa: QuantumCircuit) -> dict:
     """Depth and gate counts of a transpiled (ISA) circuit, and the physical qubits it uses."""
     ops = isa.count_ops()
     layout = isa.layout.final_index_layout() if isa.layout is not None else list(range(isa.num_qubits))
-    two_q = sum(1 for inst in isa.data if inst.operation.num_qubits == 2)
+
+    def is_2q_gate(inst):  # barriers and measurements are not gates
+        return inst.operation.num_qubits == 2 and inst.operation.name not in ("barrier", "measure")
+
+    two_q = sum(1 for inst in isa.data if is_2q_gate(inst))
     return {
-        "depth": isa.depth(),
-        "depth_2q": isa.depth(lambda inst: inst.operation.num_qubits == 2),
+        "depth": isa.depth(lambda inst: inst.operation.name != "barrier"),
+        "depth_2q": isa.depth(is_2q_gate),
         "n_2q": two_q,
         "n_cz": int(ops.get("cz", 0)),
         "n_sx": int(ops.get("sx", 0)),

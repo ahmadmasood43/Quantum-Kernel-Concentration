@@ -1,0 +1,44 @@
+{
+ "passed": true,
+ "checked_utc": "2026-11-11T12:35:37.796510+00:00",
+ "shots": 1000,
+ "qpy_sha256": "a39323a6e1241e6b58cf97f88ddd6a2fbc486ceabde240c3d0e8f28e4b7d01da",
+ "projected_qpu_s": 190.0460029689048,
+ "cost_factor": 1.5055298109957878,
+ "cost_factor_source": "pilot",
+ "remaining_at_check_s": 592,
+ "checks": {
+  "circuit_count": {
+   "pass": true,
+   "detail": "495 circuits, design 495, stats 495"
+  },
+  "measured_bits": {
+   "pass": true,
+   "detail": "every circuit measures exactly n classical bits"
+  },
+  "diagonal_gates_kept": {
+   "pass": true,
+   "detail": "diagonal circuits keep their 2Q gates: n=2: 4, n=4: 8, n=6: 20"
+  },
+  "ideal_matches_exact": {
+   "pass": true,
+   "detail": "max |p_ideal - k_exact| = 2.99 shot-noise SDs (limit 5)"
+  },
+  "ideal_diagonal_is_one": {
+   "pass": true,
+   "detail": "90 diagonal circuits, min 1.0000"
+  },
+  "noise_model_degrades_diagonal_beyond_readout": {
+   "pass": true,
+   "detail": "n=2: diag 0.980 vs readout-only 0.993; n=4: diag 0.916 vs readout-only 0.969; n=6: diag 0.852 vs readout-only 0.944"
+  },
+  "analysis_runs": {
+   "pass": true,
+   "detail": "spread statistics and bootstrap computed on simulated counts"
+  },
+  "qpu_budget": {
+   "pass": true,
+   "detail": "naive 126 s x measured cost factor 1.51 (pilot) = 190 s projected; remaining 592 s; reserve 120 s"
+  }
+ }
+}
