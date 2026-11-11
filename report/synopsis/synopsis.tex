@@ -1,0 +1,73 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+
+\title{Kernel Concentration and Bandwidth Scaling\\in Quantum Kernel Methods: Project Synopsis}
+
+\author{\IEEEauthorblockN{Muhammad Ahmad Masood and Muhammad Waqas}
+\IEEEauthorblockA{AI 631 Quantum Machine Learning, Fall 2026 --- Project \#5}}
+
+\maketitle
+
+\begin{abstract}
+Fidelity quantum kernels can concentrate: as the number of qubits grows, off-diagonal kernel values cluster around a fixed value, and estimating them with a finite number of measurement shots can no longer separate different inputs. Scaling the input features by a bandwidth parameter has been proposed as a way to counter this. We will measure how fast the off-diagonal kernel variance decays from 2 to 16 qubits as a function of bandwidth. We will also determine when that variance falls below the shot-noise floor, and test whether a tuned bandwidth keeps classification accuracy competitive with an equally tuned classical RBF kernel. Experiments use exact statevector simulation, finite-shot sampling, a noise model derived from IBM device calibration data, and runs on IBM quantum hardware at two to three qubit counts.
+\end{abstract}
+
+\section{Research Question and Hypotheses}
+\textbf{Research question.} How fast do quantum kernel values concentrate as the qubit count grows, and does a bandwidth hyperparameter restore learnability?
+
+For a data-encoding unitary $U(\cdot)$ and bandwidth $\lambda>0$, we study the fidelity kernel
+\begin{equation}
+k_\lambda(\mathbf{x},\mathbf{x}') = \bigl|\langle 0^{n}|\,U^{\dagger}(\lambda\mathbf{x}')\,U(\lambda\mathbf{x})\,|0^{n}\rangle\bigr|^{2},
+\end{equation}
+where $\mathbf{x}\in\mathbb{R}^{n}$ uses one feature per qubit. Our central quantity is the off-diagonal variance $\sigma^{2}_{\lambda}(n)=\mathrm{Var}_{i\neq j}\,[k_\lambda(\mathbf{x}_i,\mathbf{x}_j)]$ over the data. When $k$ is estimated as the frequency of the all-zero outcome in $N$ shots of a compute--uncompute circuit, each entry carries binomial noise with variance $k(1-k)/N$.
+
+\textbf{H1 (concentration).} At fixed $\lambda=1$, $\sigma^{2}_{\lambda}(n)$ decreases exponentially in $n$, as predicted for expressive encodings~\cite{thanasilp2024concentration}.
+
+\textbf{H2 (bandwidth).} There is a decreasing bandwidth schedule $\lambda^{*}(n)$ under which $\sigma^{2}_{\lambda^{*}}(n)$ stays above the shot-noise level at a fixed shot budget, and test accuracy at $n=16$ stays statistically above that obtained at $\lambda=1$, consistent with~\cite{shaydulin2022bandwidth,canatar2022bandwidth}.
+
+\textbf{Falsifier.} We reject H2 in our setting if, at $n=16$ and $N=10^{4}$ shots, every $\lambda$ in the search grid gives an off-diagonal spread that cannot be distinguished from the shot-noise spread (variance-ratio test, $\alpha=0.05$), \emph{or} if the best tuned $\lambda$ does not give significantly higher test accuracy than $\lambda=1$ across fixed outer folds. Small $\lambda$ is not automatically a fix: as $\lambda\to0$ every kernel value tends to $1$, which is another form of concentration. The test therefore looks for an intermediate regime.
+
+\section{Background}
+Quantum kernel methods embed data into quantum states and use state overlaps as a kernel for a classical support vector machine~\cite{havlicek2019supervised,schuld2019feature}. Huang \emph{et al.}\ showed that when quantum kernel values for distinct inputs become very small, the kernel matrix approaches the identity and generalization suffers~\cite{huang2021power}. Thanasilp \emph{et al.}\ identified expressivity, entanglement, global measurements, and hardware noise as sources of exponential concentration. Under concentration, a polynomial number of shots cannot resolve kernel values, and the resulting models become insensitive to the input data~\cite{thanasilp2024concentration}. Shaydulin and Wild showed numerically that tuning a feature-scaling bandwidth can restore generalization for quantum kernels with many qubits~\cite{shaydulin2022bandwidth}, and Canatar \emph{et al.}\ analyzed how bandwidth controls generalization~\cite{canatar2022bandwidth}.
+
+\section{Data and Models}
+\textbf{Datasets.} (i) Fashion-MNIST~\cite{xiao2017fashion}, restricted to one binary class pair (T-shirt/top vs.\ Pullover), class-balanced and subsampled to a few hundred images per run, with five subsampling seeds. (ii) A controlled synthetic dataset, a two-class Gaussian mixture in $\mathbb{R}^{n}$ with tunable separation, which isolates the effect of $n$ and $\lambda$ from image structure.
+
+\textbf{Preprocessing.} Standardization and PCA to $n$ components are fit on the training indices of each fold only, followed by rescaling the features to a fixed angle range before applying $\lambda$. The course NB11 starter notebook was not available to us. We therefore implement equivalent fixed folds, leakage-free preprocessing, baselines, ablations, and noise sweeps ourselves, and we test explicitly that no transform sees test data.
+
+\textbf{Quantum model.} An IQP-type $ZZ$ feature map~\cite{havlicek2019supervised} with nearest-neighbour entanglement and a small number of repetitions, applied to $\lambda\mathbf{x}$. The precomputed kernel is passed to an SVM. We sweep $n\in\{2,4,\dots,16\}$ and $\lambda$ over a logarithmic grid. For every circuit we will report the logical and transpiled depth and the two-qubit gate count.
+
+\textbf{Simulation regimes.} (a) Exact statevector kernels. (b) Finite-shot kernels obtained by binomial sampling with $N\in\{10^{2},\dots,10^{5}\}$. (c) Noisy simulation with a noise model built from an IBM backend's calibration data, including a sweep that scales the error rates. (d) Hardware.
+
+\textbf{Hardware.} Compute--uncompute circuits for a small set of data points at two to three qubit counts (tentatively $n\in\{2,4,6\}$) and two bandwidths. The circuits are transpiled for, and run on, an IBM quantum processor. The same transpiled circuits, data points, and shot counts are then simulated with a noise model built from that backend's calibration at run time, so that the off-diagonal variances can be compared directly. We will record the backend name, job IDs, shots, transpilation settings, and calibration data. The experiment size will be fixed once account access and QPU allocation are confirmed.
+
+\section{Baselines and Evaluation}
+All models share fixed, stratified outer folds (5 folds) stored on disk, with inner cross-validation for model selection. Baselines: an RBF-kernel SVM whose $\gamma$ is searched on a logarithmic grid of the same size and with the same selection protocol as $\lambda$, a linear SVM, logistic regression, and the majority-class rate. We report the mean and standard deviation of test accuracy over outer folds and seeds, off-diagonal variance with bootstrap confidence intervals, and fitted decay rates of $\sigma^{2}_{\lambda}(n)$. We will report cases where the classical baseline outperforms the quantum kernel.
+
+\section{Execution Plan}
+\begin{table}[h]
+\centering
+\caption{Week-by-week plan}
+\begin{tabular}{@{}p{0.23\columnwidth}p{0.70\columnwidth}@{}}
+\toprule
+Due & Deliverables \\
+\midrule
+Synopsis & This document; software environment; IBM account access verified. \\
+Nov 15 & Data pipeline, fixed folds, leakage tests, classical baselines, first statevector kernel; Introduction and Methods drafts; code on GitHub. \\
+Nov 22 & Full 2--16 qubit sweep; finite-shot analysis; noise-model runs and noise sweep; ablations (feature-map repetitions, entangling vs.\ product map, training-set size); draft Results. \\
+Nov 29 & IBM hardware runs and matched noise-model comparison; slides. \\
+Dec 6 & Final report (PDF and \LaTeX{} source), tagged GitHub release, presentation. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Main risks.} Queue time and limited QPU allocation for the hardware runs, which we address by submitting early and keeping the circuit count small. Simulation cost at $n=16$, which we address with statevector inner products rather than sampled circuits for the exact kernels.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

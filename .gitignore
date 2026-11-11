@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Credentials: never commit IBM Quantum tokens
+.qiskit/
+qiskit-ibm.json
+*.token
+.env
+
+# Raw downloaded datasets (re-created by the data scripts)
+data/raw/
+
+# LaTeX build products
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
