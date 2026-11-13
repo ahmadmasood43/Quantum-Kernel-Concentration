@@ -13,6 +13,7 @@ Outputs:
 """
 
 import glob
+import json
 from pathlib import Path
 
 import matplotlib
@@ -75,14 +76,15 @@ def seed_ci(df, value, by):
     return out
 
 
-def write_tex(df, name, caption, label, fmt):
+def write_tex(df, name, caption, label, fmt, wide=False):
     cols = list(df.columns)
-    lines = [r"\begin{table}[t]", r"\centering", rf"\caption{{{caption}}}", rf"\label{{{label}}}",
+    env = "table*" if wide else "table"
+    lines = [rf"\begin{{{env}}}[t]", r"\centering", rf"\caption{{{caption}}}", rf"\label{{{label}}}",
              r"\setlength{\tabcolsep}{3pt}", r"\begin{tabular}{" + "l" * len(cols) + "}", r"\toprule",
              " & ".join(cols) + r" \\", r"\midrule"]
     for _, r in df.iterrows():
         lines.append(" & ".join(fmt.get(c, str)(r[c]) for c in cols) + r" \\")
-    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    lines += [r"\bottomrule", r"\end{tabular}", rf"\end{{{env}}}"]
     (TEX / f"{name}.tex").write_text("\n".join(lines) + "\n")
 
 
@@ -310,6 +312,53 @@ def falsifier(q, tq):
         pd.DataFrame(rows).to_csv(TAB / "falsifier.csv", index=False)
 
 
+def falsifier_proposal(q, tq, tr):
+    """Falsifier of the submitted proposal, evaluated on the saved nested-CV results.
+
+    Proposal: at n = 16 with 5,000 shots, reject if (a) Var(K_ij) at lambda* is below
+    the mean single-entry shot-noise variance mean(K(1-K))/5000, or (b) test accuracy
+    at lambda* is not significantly above chance, or is significantly below the tuned
+    RBF kernel. Adaptations (no re-runs): (a) is computed exactly at N = 5,000 from the
+    saved kernel statistics; lambda* and accuracies use the closest saved budgets
+    N = 1e3 and 1e4; the chance test is a one-sided binomial test on each seed's 300
+    out-of-fold predictions (5 folds x 60 test points); McNemar's test needs per-sample
+    predictions, which were not saved, so the RBF comparison is a one-sided Wilcoxon
+    signed-rank test over the 25 paired folds.
+    """
+    N_PROP, N_TEST = 5000, 60
+    rows = []
+    for ds in ["fmnist", "synthetic"]:
+        r = tr[(tr.dataset == ds) & (tr.n == 16)].set_index(["seed", "outer_fold"]).test_acc if tr is not None else None
+        for N in (1e3, 1e4):
+            t = tq[(tq.dataset == ds) & (tq.n == 16) & (tq.shots == N)]
+            if t.empty:
+                continue
+            s2s = t.offdiag_var / (t.mean_k1mk / N_PROP)
+            a_ok = bool((s2s > 1).mean() > 0.5)
+            p_chance = []
+            for seed, g in t.groupby("seed"):
+                k = int(round((g.test_acc * N_TEST).sum()))
+                p_chance.append(stats.binomtest(k, N_TEST * len(g), 0.5, alternative="greater").pvalue)
+            chance_ok = max(p_chance) < 0.05
+            p_rbf = np.nan
+            if r is not None:
+                j = pd.concat([t.set_index(["seed", "outer_fold"]).test_acc.rename("q"), r.rename("r")], axis=1).dropna()
+                d = j.q - j.r
+                p_rbf = stats.wilcoxon(d, alternative="less").pvalue if (d != 0).any() else 1.0
+            rbf_ok = not (p_rbf < 0.05)
+            rows.append({"dataset": ds, "shots_for_selection": int(N), "median_lambda_star": float(t.h.median()),
+                         "s2s_at_5000_median": float(s2s.median()), "a_spread_above_noise": a_ok,
+                         "acc_quantum": float(t.test_acc.mean()), "acc_rbf": float(r.mean()) if r is not None else np.nan,
+                         "max_p_vs_chance": float(max(p_chance)), "p_worse_than_rbf": float(p_rbf),
+                         "rejected": (not a_ok) or (not chance_ok) or (not rbf_ok)})
+            note(f"Proposal falsifier [{ds}] n=16, lambda* at N={int(N)}: spread/noise at 5,000 shots median "
+                 f"{s2s.median():.0f} ({'ok' if a_ok else 'FAIL'}); acc {t.test_acc.mean():.3f} vs RBF "
+                 f"{r.mean() if r is not None else float('nan'):.3f} (Wilcoxon worse p={p_rbf:.2g}); "
+                 f"vs chance max p={max(p_chance):.1e} -> {'REJECTED' if rows[-1]['rejected'] else 'not rejected'}")
+    if rows:
+        pd.DataFrame(rows).to_csv(TAB / "falsifier_proposal.csv", index=False)
+
+
 def table_tuned(tq, tr, base):
     rows = []
     for ds in ["fmnist", "synthetic"]:
@@ -447,6 +496,67 @@ def hardware():
         note(f"hardware: {d.name} -> hardware_vs_noise_{d.name}.pdf")
 
 
+# --------------------------------------------------------------------------- resource counts
+def table_resources():
+    """Qubits, circuit depth, two-qubit gates and shots for every circuit setting.
+
+    Exact simulation uses statevectors (no circuits), so its row reports the
+    logical compute-uncompute circuit; the noise-model and hardware rows report
+    the transpiled (ISA) circuits actually executed, over all (lambda, pair) circuits.
+    """
+    from qkc.hwexp import kernel_circuit
+
+    rows = []
+    rng = np.random.default_rng(0)
+    for n in (2, 4, 8, 12, 16):
+        a, b = rng.standard_normal(n), rng.standard_normal(n)
+        qc = kernel_circuit(a, b, 1.0).remove_final_measurements(inplace=False)
+        ops = qc.count_ops()
+        rows.append({"setting": "exact simulation (logical circuit)", "n": n, "qubits": n,
+                     "depth": str(qc.depth(lambda i: i.operation.name != "barrier")),
+                     "two_qubit_gates": f"{ops.get('rzz', 0)} RZZ", "shots": "exact; 10^2-10^5 sampled"})
+    p = RESULTS / "noise" / "entries.parquet"
+    if p.exists():
+        e = pd.read_parquet(p)
+        e = e[e.scale == e.scale.max()]  # circuits are identical across noise scales
+        meta = json.loads((RESULTS / "noise" / "meta.json").read_text())
+        for n, g in e.groupby("n"):
+            rows.append({"setting": f"noise model ({meta['calibration_backend']})", "n": int(n), "qubits": int(n),
+                         "depth": f"{int(g.depth.min())}/{int(g.depth.median())}/{int(g.depth.max())}",
+                         "two_qubit_gates": f"{int(g.n_2q.min())}/{int(g.n_2q.median())}/{int(g.n_2q.max())} CZ",
+                         "shots": str(meta["shots"])})
+    for d in sorted(Path(x) for x in glob.glob(str(RESULTS / "hardware" / "*")) if Path(x).is_dir()):
+        if d.name.startswith("dryrun_") or not (d / "job.json").exists() or not (d / "isa_stats.csv").exists():
+            continue
+        st = pd.read_csv(d / "isa_stats.csv")
+        job = json.loads((d / "job.json").read_text())
+        # Recount from the saved ISA circuits with the current isa_stats, so runs whose
+        # isa_stats.csv predates the barrier-counting fix (the pilot) are reported correctly.
+        from qiskit import qpy
+
+        from qkc.hwexp import isa_stats
+
+        with open(d / "circuits.qpy", "rb") as f:
+            recount = [isa_stats(c) for c in qpy.load(f)]
+        st["depth"] = [r["depth"] for r in recount]
+        st["n_2q"] = [r["n_2q"] for r in recount]
+        for n, g in st.groupby("n"):
+            rows.append({"setting": f"hardware {d.name} ({job['backend']})", "n": int(n), "qubits": int(n),
+                         "depth": f"{int(g.depth.min())}/{int(g.depth.median())}/{int(g.depth.max())}",
+                         "two_qubit_gates": f"{int(g.n_2q.min())}/{int(g.n_2q.median())}/{int(g.n_2q.max())} CZ",
+                         "shots": str(job["shots"])})
+    t = pd.DataFrame(rows)
+    t.to_csv(TAB / "resources.csv", index=False)
+    tex = t.rename(columns={"setting": "Setting", "n": "$n$", "qubits": "Qubits", "depth": "Depth",
+                            "two_qubit_gates": "2Q gates", "shots": "Shots"})
+    tex["Setting"] = tex["Setting"].str.replace("_", r"\_")
+    tex["Shots"] = tex["Shots"].str.replace("10^2-10^5", r"$10^{2}$--$10^{5}$", regex=False)
+    write_tex(tex, "resources", "Resource counts per kernel circuit. Exact simulation: logical compute--uncompute "
+              "circuit ($\\lambda$-independent structure). Noise model and hardware: transpiled circuits as executed, "
+              "min/median/max over all circuits for that $n$ (CZ = native two-qubit gate).", "tab:resources", {}, wide=True)
+    note(f"table: resources ({len(t)} rows)")
+
+
 def main():
     import argparse
 
@@ -476,8 +586,10 @@ def main():
             fig_shot_map(qq)
             table_tuned(tq, tr, base)
             falsifier(qq, tq)
+            falsifier_proposal(qq, tq, tr)
             table_ablations(qq)
     fig_noise()
+    table_resources()
     hardware()
     (RESULTS / "RESULTS.md").write_text("# Generated results summary\n\nProduced by `experiments/analyze.py` from saved "
                                         "results; regenerate rather than edit.\n\n" + "\n".join(f"- {l}" for l in LOG) + "\n")

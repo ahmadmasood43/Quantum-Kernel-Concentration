@@ -1,0 +1,26 @@
+\begin{table*}[t]
+\centering
+\caption{Resource counts per kernel circuit. Exact simulation: logical compute--uncompute circuit ($\lambda$-independent structure). Noise model and hardware: transpiled circuits as executed, min/median/max over all circuits for that $n$ (CZ = native two-qubit gate).}
+\label{tab:resources}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llllll}
+\toprule
+Setting & $n$ & Qubits & Depth & 2Q gates & Shots \\
+\midrule
+exact simulation (logical circuit) & 2 & 2 & 12 & 4 RZZ & exact; $10^{2}$--$10^{5}$ sampled \\
+exact simulation (logical circuit) & 4 & 4 & 18 & 12 RZZ & exact; $10^{2}$--$10^{5}$ sampled \\
+exact simulation (logical circuit) & 8 & 8 & 26 & 28 RZZ & exact; $10^{2}$--$10^{5}$ sampled \\
+exact simulation (logical circuit) & 12 & 12 & 34 & 44 RZZ & exact; $10^{2}$--$10^{5}$ sampled \\
+exact simulation (logical circuit) & 16 & 16 & 42 & 60 RZZ & exact; $10^{2}$--$10^{5}$ sampled \\
+noise model (ibm\_marrakesh) & 2 & 2 & 11/24/26 & 0/4/4 CZ & 4000 \\
+noise model (ibm\_marrakesh) & 4 & 4 & 24/87/92 & 4/24/24 CZ & 4000 \\
+noise model (ibm\_marrakesh) & 6 & 6 & 71/117/123 & 20/40/40 CZ & 4000 \\
+noise model (ibm\_marrakesh) & 8 & 8 & 84/149/158 & 40/56/56 CZ & 4000 \\
+noise model (ibm\_marrakesh) & 10 & 10 & 87/179/187 & 48/72/72 CZ & 4000 \\
+hardware hw1 (ibm\_marrakesh) & 2 & 2 & 24/24/29 & 4/4/4 CZ & 1000 \\
+hardware hw1 (ibm\_marrakesh) & 4 & 4 & 30/87/96 & 8/24/24 CZ & 1000 \\
+hardware hw1 (ibm\_marrakesh) & 6 & 6 & 71/117/126 & 20/40/40 CZ & 1000 \\
+hardware pilot (ibm\_marrakesh) & 2 & 2 & 1/20/20 & 0/3/3 CZ & 1000 \\
+\bottomrule
+\end{tabular}
+\end{table*}

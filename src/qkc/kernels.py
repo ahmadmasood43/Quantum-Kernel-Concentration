@@ -117,10 +117,3 @@ def rbf_kernel(XA: np.ndarray, XB: np.ndarray | None, gamma: float) -> np.ndarra
     XB = XA if XB is None else XB
     d2 = (XA**2).sum(1)[:, None] + (XB**2).sum(1)[None, :] - 2.0 * XA @ XB.T
     return np.exp(-gamma * np.maximum(d2, 0.0))
-
-
-def offdiag_stats(K: np.ndarray) -> dict:
-    """Mean and variance of the off-diagonal entries of a square Gram matrix."""
-    iu = np.triu_indices_from(K, k=1)
-    v = K[iu]
-    return {"offdiag_mean": float(v.mean()), "offdiag_var": float(v.var(ddof=1))}

@@ -1,0 +1,85 @@
+{
+  "dispersion_null_calibration": [
+    {
+      "c": 0.6,
+      "shots": 500,
+      "m": 30,
+      "reps": 2000,
+      "rejection_rate": 0.048
+    },
+    {
+      "c": 0.99,
+      "shots": 1000,
+      "m": 60,
+      "reps": 2000,
+      "rejection_rate": 0.044
+    },
+    {
+      "c": 0.95,
+      "shots": 10000,
+      "m": 60,
+      "reps": 2000,
+      "rejection_rate": 0.0515
+    }
+  ],
+  "week1_grid_edges": [
+    {
+      "dataset": "fmnist",
+      "model": "quantum",
+      "lower_edge_overall": 0.17,
+      "upper_edge_overall": 0.0,
+      "lower_edge_min_over_n": 0.0,
+      "lower_edge_max_over_n": 0.36
+    },
+    {
+      "dataset": "fmnist",
+      "model": "rbf",
+      "lower_edge_overall": 0.18,
+      "upper_edge_overall": 0.0,
+      "lower_edge_min_over_n": 0.04,
+      "lower_edge_max_over_n": 0.32
+    },
+    {
+      "dataset": "synthetic",
+      "model": "quantum",
+      "lower_edge_overall": 0.19,
+      "upper_edge_overall": 0.0,
+      "lower_edge_min_over_n": 0.04,
+      "lower_edge_max_over_n": 0.32
+    },
+    {
+      "dataset": "synthetic",
+      "model": "rbf",
+      "lower_edge_overall": 0.185,
+      "upper_edge_overall": 0.0,
+      "lower_edge_min_over_n": 0.04,
+      "lower_edge_max_over_n": 0.36
+    }
+  ],
+  "shot_limit_extrapolation": {
+    "fit": {
+      "intercept": -0.4460071899941964,
+      "slope_per_qubit": -0.3701074273842106,
+      "halving_qubits": 1.8728269936619923
+    },
+    "n_star": {
+      "1000": 17.459114870126516,
+      "10000": 23.680511477235722,
+      "100000": 29.901908084344935
+    },
+    "note": "extrapolation beyond the measured n = 2-16"
+  },
+  "sweep_provenance": {
+    "commits": [
+      "217476e",
+      "5810bcf",
+      "735b5cc",
+      "c5615a4"
+    ],
+    "code_diff_vs_first": {
+      "5810bcf": "src/qkc/sweep.py | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)",
+      "735b5cc": "identical",
+      "c5615a4": "identical"
+    }
+  }
+}

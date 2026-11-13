@@ -11,7 +11,7 @@ The first run downloads the files automatically into `data/raw/` (git-ignored), 
 .venv/bin/python -c "from qkc.data import download_fmnist; download_fmnist()"
 ```
 
-Files used, with SHA-256 checksums recorded on 2026-11-11:
+Files used, with SHA-256 checksums recorded on 2026-11-11. `qkc.data.download_fmnist` checks every file against these values and stops if one does not match:
 
 | File | Bytes | SHA-256 |
 |------|-------|---------|
@@ -42,4 +42,4 @@ Each step is fit on the training rows of the current (inner or outer) fold only,
 
 ## Fixed folds (`data/folds/`)
 
-`<dataset>_seed<s>.json` holds 5 stratified outer folds. Each outer fold contains 3 stratified inner folds built on its training rows. All indices are absolute row indices into the seed's subsample. The files are created on first use, committed, and then reused by every model. Each result's `.meta.json` records the SHA-256 of the fold file it used.
+`<dataset>_seed<s>.json` holds 5 stratified outer folds (the training-set-size ablation uses `fmnist_m<size>_seed<s>.json`, e.g. `fmnist_m100`, `fmnist_m500`). Each outer fold contains 3 stratified inner folds built on its training rows. All indices are absolute row indices into the seed's subsample. The files are created on first use, committed, and then reused by every model. Each result's `.meta.json` records the SHA-256 of the fold file it used.

@@ -132,12 +132,3 @@ def build_noise_model(cal: dict, scale: float = 1.0) -> NoiseModel:
         if err is not None:
             nm.add_quantum_error(err, TWO_Q_GATE, [a, b])
     return nm
-
-
-def used_qubit_calibration(cal: dict, physical_qubits: list[int]) -> dict:
-    """Calibration rows for the physical qubits a circuit actually uses (for the report)."""
-    qs = set(physical_qubits)
-    return {
-        "qubits": {q: cal["qubits"][q] for q in sorted(qs)},
-        "cz_edges": [e for e in cal["cz_edges"] if set(e["qubits"]) <= qs],
-    }

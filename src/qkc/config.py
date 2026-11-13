@@ -10,7 +10,8 @@ FOLDS_DIR = ROOT / "data" / "folds"
 RESULTS = ROOT / "results"
 
 # Subsampling seeds: each seed draws a different class-balanced subsample and
-# its own fixed folds. Results are reported as mean +/- std over these seeds.
+# its own fixed folds. Results are reported as means with 95% confidence
+# intervals over seeds (folds averaged within each seed).
 SEEDS = (0, 1, 2, 3, 4)
 
 # Fashion-MNIST class pair (labels per the dataset paper): 0 = T-shirt/top, 2 = Pullover.
@@ -23,7 +24,9 @@ N_INNER_FOLDS = 3
 QUBIT_COUNTS = (2, 4, 6, 8, 10, 12, 14, 16)
 
 # Week 1 grids (kept so experiments/run_cv.py reproduces the committed Week 1
-# results exactly). 16-36% of Week 1 selections hit the lower edge.
+# results exactly). Week 1 selected the lowest grid value in 17-19% of folds
+# overall (up to 32-36% at some n) and the highest never; see
+# results/tables/supplementary.json.
 GRID_SIZE_V1 = 10
 LAMBDA_GRID_V1 = np.logspace(-2, np.log10(np.pi), GRID_SIZE_V1)
 RBF_G_GRID_V1 = np.logspace(-3, 1, GRID_SIZE_V1)

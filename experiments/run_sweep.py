@@ -103,7 +103,7 @@ def main():
     p.add_argument("--n-per-class", type=int, default=config.N_PER_CLASS)
     p.add_argument("--tag", default="main")
     p.add_argument("--jobs", type=int, default=1)
-    p.add_argument("--synth-sep", type=float, default=2.0)
+    p.add_argument("--synth-sep", type=float, default=2.0)  # = qkc.data.SYNTH_SEPARATION
     args = p.parse_args()
 
     outdir = config.RESULTS / "sweep" / args.tag

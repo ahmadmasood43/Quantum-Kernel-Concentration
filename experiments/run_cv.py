@@ -21,13 +21,12 @@ import sklearn
 from sklearn.linear_model import LogisticRegression
 
 from qkc import config
-from qkc.data import load_fmnist_pair, make_synthetic
+from qkc.data import SYNTH_SEPARATION, load_fmnist_pair, make_synthetic
 from qkc.evaluate import nested_cv
 from qkc.folds import load_or_create_folds
 from qkc.kernels import quantum_kernel, rbf_kernel
 from qkc.preprocess import fit_transform_split
 
-SYNTH_SEPARATION = 2.0  # Bayes-optimal accuracy Phi(1) ~ 0.841 for every n
 
 
 def git_commit() -> str:

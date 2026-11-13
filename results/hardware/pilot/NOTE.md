@@ -9,3 +9,9 @@ compiled each diagonal circuit U(x)U^dagger(x) to a bare measurement, so the
 pilot's diagonal values (`diag_mean`) reflect readout error only, not gate
 noise. Off-diagonal kernel estimates are unaffected. The main run (`hw1`)
 uses the corrected circuits.
+
+The pilot also predates two later additions: it has no `preflight.json` (the
+preflight step was introduced for `hw1`), and its `isa_stats.csv` was written
+before barriers were excluded from two-qubit gate counts, so its `n_2q` and
+`depth_2q` columns overcount. `experiments/analyze.py` recounts gates from the
+saved `circuits.qpy` when building the resource table.

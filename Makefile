@@ -1,7 +1,10 @@
 PY := .venv/bin/python
+
+# Full reproduction from a fresh clone (hours of compute; IBM hardware runs are separate, see README).
+all: test sweep ablations noise figures report
 QUBITS ?= 2 4 6 8 10 12 14 16
 
-.PHONY: setup test cv-fmnist cv-synthetic sweep ablations noise figures demo synopsis report clean-tex
+.PHONY: all setup test cv-fmnist cv-synthetic sweep ablations noise figures demo proposal report clean-tex
 
 setup:
 	uv venv --python 3.12 .venv
@@ -41,18 +44,19 @@ noise:
 # Every report figure and table from saved results.
 figures:
 	$(PY) experiments/analyze.py
+	$(PY) experiments/supplementary.py
 
 # Quick end-to-end check for the weekly demo (one seed, small n); writes to results/demo/, never results/cv/.
 demo:
 	$(PY) -m pytest -q
 	$(PY) experiments/run_cv.py --dataset fmnist --models rbf quantum --qubits 2 4 --seeds 0 --outdir results/demo
 
-synopsis:
-	cd report/synopsis && latexmk -pdf -interaction=nonstopmode -halt-on-error synopsis.tex
+proposal:
+	cd report/proposal_revised && latexmk -pdf -interaction=nonstopmode -halt-on-error proposal.tex
 
 report:
 	cd report && latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 
 clean-tex:
 	cd report && latexmk -c main.tex
-	cd report/synopsis && latexmk -c synopsis.tex
+	cd report/proposal_revised && latexmk -c proposal.tex
