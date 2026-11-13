@@ -1,0 +1,38 @@
+{
+  "calibration": "results/hardware/calibration_ibm_marrakesh_20261111T121129Z.json",
+  "qubits": [
+    2,
+    4,
+    6,
+    8,
+    10
+  ],
+  "lambdas": [
+    0.0625,
+    0.25,
+    0.5,
+    1.0
+  ],
+  "scales": [
+    0.0,
+    0.5,
+    1.0,
+    2.0
+  ],
+  "m": 16,
+  "shots": 4000,
+  "seed": 0,
+  "outdir": "results/noise",
+  "calibration_backend": "ibm_marrakesh",
+  "calibration_snapshot_utc": "2026-11-11T12:11:29.153491+00:00",
+  "calibration_last_update": "2026-11-11T15:07:21+05:00",
+  "optimization_level": 3,
+  "basis_gates": [
+    "cz",
+    "rz",
+    "sx",
+    "x"
+  ],
+  "git_commit": "fe3f85186549a5466b25e48390cd132204aeb626",
+  "runtime_s": 1713.1
+}

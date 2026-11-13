@@ -1,0 +1,112 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+
+\title{Kernel Concentration and Bandwidth Scaling\\in Quantum Machine Learning}
+
+\author{\IEEEauthorblockN{Muhammad Ahmad Masood and Muhammad Waqas}
+\IEEEauthorblockA{Lahore University of Management Sciences\\
+Quantum Machine Learning Course, 2026}}
+
+\maketitle
+
+\begin{abstract}
+This proposal plans a study of kernel concentration in quantum machine learning and of bandwidth scaling as a way to reduce it. We will track how the off-diagonal variance of quantum kernel matrices changes as the number of qubits grows from 2 to 16, check whether a bandwidth hyperparameter keeps this variance measurable with a finite number of shots, and compare classification accuracy against a classical RBF kernel. The study covers noise-free simulation, finite-shot and noise-model simulation, and runs on IBM quantum hardware.
+\end{abstract}
+
+\begin{table*}[t]
+\centering
+\caption{Weekly implementation plan and milestone deliverables}
+\label{tab:plan}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{0.09\textwidth}p{0.50\textwidth}p{0.35\textwidth}@{}}
+\toprule
+Week & Key tasks \& technical implementation & Milestone deliverables \\
+\midrule
+Week 1 (by Nov 15) &
+$\bullet$ Build automated data preprocessing pipeline (Fashion-MNIST / PCA).\newline
+$\bullet$ Construct 5 fixed cross-validation folds.\newline
+$\bullet$ Implement classical RBF SVM baselines with hyperparameter grid search.\newline
+$\bullet$ Implement first quantum IQP feature map kernel in Qiskit. &
+$\bullet$ Data pipeline \& fixed cross-validation folds in place.\newline
+$\bullet$ Classical RBF baseline results logged.\newline
+$\bullet$ First working quantum IQP model code.\newline
+$\bullet$ Report: drafted Introduction \& Methods.\newline
+$\bullet$ Code committed to GitHub. \\
+\midrule
+Week 2 (by Nov 22) &
+$\bullet$ Full statevector simulation sweeps ($n=2$ to 16, $\lambda$ from $10^{-3}$ to $10^{0}$).\newline
+$\bullet$ Finite-shot models (5{,}000 shots and the shot-count sweep) with PSD projection.\newline
+$\bullet$ Measure off-diagonal kernel variance $\mathrm{Var}(K_{ij})$ across qubit counts.\newline
+$\bullet$ Aer noise-model simulations from IBM backend calibration data.\newline
+$\bullet$ Ablations: Trotter steps $T$ and feature map (IQP vs.\ Hamiltonian evolution). &
+$\bullet$ Full simulator sweep data generated.\newline
+$\bullet$ Shot-noise model \& PSD projection integrated.\newline
+$\bullet$ Noise-model and ablation results for bandwidth vs.\ qubit scaling.\newline
+$\bullet$ Report: drafted Results \& Discussion.\newline
+$\bullet$ Code committed to GitHub. \\
+\midrule
+Week 3 (by Nov 29) &
+$\bullet$ Run quantum kernel circuits on IBM Quantum hardware at 2--3 qubit counts.\newline
+$\bullet$ Quantify effects of control precision and gate error on kernel concentration.\newline
+$\bullet$ Compare hardware kernel variance against the noise-model simulator.\newline
+$\bullet$ Assemble presentation slide deck. &
+$\bullet$ IBM Quantum hardware results in hand.\newline
+$\bullet$ Hardware vs.\ simulation comparison complete.\newline
+$\bullet$ Presentation slide deck finalized. \\
+\midrule
+Week 4 (by Dec 6) &
+$\bullet$ Finalize IEEE \LaTeX{} manuscript: text, figures, formatting.\newline
+$\bullet$ Codebase refactoring, documentation, and release packaging. &
+$\bullet$ Final IEEE \LaTeX{} report (PDF + .tex source).\newline
+$\bullet$ Tagged release on GitHub. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Introduction}
+In quantum machine learning (QML), classical data are mapped into quantum states through parameterized quantum feature maps, and similarities between data points are evaluated using quantum state overlaps~\cite{havlicek2019supervised}. However, as the number of qubits increases, the kernel values associated with distinct data points can become increasingly concentrated around a common value~\cite{thanasilp2024concentration}. Depending on the feature map and data distribution, this may cause the off-diagonal elements of the quantum kernel matrix to approach zero, making the matrix increasingly similar to an identity matrix~\cite{huang2021power}. Such concentration reduces the variation in kernel values and can limit the ability of quantum kernel methods to distinguish between data points, potentially degrading the classification performance. Since kernel values on a quantum device are estimated from a finite number of measurement shots, concentrated values can also become indistinguishable from measurement noise~\cite{thanasilp2024concentration}.
+
+This research investigates whether bandwidth scaling can help mitigate kernel concentration in quantum machine learning. Specifically, an explicit bandwidth hyperparameter $\lambda$ is introduced through input rescaling, $x_i \rightarrow \lambda x_i$, following~\cite{shaydulin2022bandwidth}, to examine its effect on the quantum feature map, kernel matrix structure, and classification performance. The study will systematically optimize this parameter and evaluate whether appropriate bandwidth selection can preserve meaningful variations in kernel values, improve the learnability of quantum kernel models, and maintain generalization performance as the number of qubits increases from $n=2$ to $n=16$.
+
+\textbf{Research question:} How fast do quantum kernel values concentrate as qubit count grows, and does a bandwidth hyperparameter restore learnability?
+
+\textbf{Hypothesis:} At fixed $\lambda=1$, the off-diagonal kernel variance decays exponentially with $n$. With $\lambda$ chosen by cross-validation, the kernel keeps enough spread to be measured with 5{,}000 shots, and its test accuracy stays well above chance and is not worse than a tuned RBF kernel up to $n=16$.
+
+\section{Falsifier}
+All accuracies below are measured on the 200 held-out test samples; the cross-validation folds are used only to choose $\lambda$ and $C$. At $n=16$ with 5{,}000 shots per kernel entry, the hypothesis is rejected if (a) at the cross-validated bandwidth $\lambda^{*}$ the off-diagonal variance $\mathrm{Var}(K_{ij})$, $i\neq j$, is smaller than the average shot-noise variance of a single entry, $\overline{K_{ij}(1-K_{ij})}/5000$, meaning the true spread is buried in measurement noise; or (b) the test accuracy at $\lambda^{*}$ is not significantly above chance (one-sided binomial test against 50\%, $\alpha=0.05$), or is significantly below the tuned RBF baseline on the same test samples (McNemar's test, $\alpha=0.05$). The concentration part is rejected if, at $\lambda=1$, the slope of $\ln\mathrm{Var}(K_{ij})$ against $n$ is not negative with a 95\% bootstrap confidence interval excluding zero.
+
+\section{Data \& Preprocessing Pipeline}
+\textbf{Primary benchmark:} We will use Fashion-MNIST~\cite{xiao2017fashion} as our benchmark dataset for both quantum and classical model evaluation. It is a 10-class dataset, out of which we choose two classes, T-shirt/top (label 0) and Pullover (label 2), for binary classification. Each image is $28\times28$ pixels, resulting in a vector $x\in\mathbb{R}^{784}$, which is centered to zero mean and unit variance.
+
+\textbf{Dimensionality reduction \& splits:} Principal Component Analysis (PCA) will be applied to project the input dimensions down to $n$ components, $n\in\{2,4,6,8,10,12,14,16\}$. We will use 1{,}200 training samples from the official training split and 200 held-out test samples from the official test split, keeping the same 6:1 train/test ratio as the whole dataset. The five fixed cross-validation folds are built from the training samples only, and PCA is fitted on the training portion of each fold, so no test information enters the preprocessing.
+
+\section{Quantum \& Classical Models}
+\textbf{Quantum feature maps:} Two quantum circuit architectures are implemented in Qiskit:
+\begin{itemize}
+\item \textbf{Instantaneous Quantum Polynomial (IQP) circuit}~\cite{havlicek2019supervised,shaydulin2022bandwidth}: Hadamard gates followed by $Z$ rotations and $ZZ$ interactions, applied twice, $|\psi(x)\rangle = U_Z(\lambda x)\,H^{\otimes n}\,U_Z(\lambda x)\,H^{\otimes n}|0^{n}\rangle$, with
+\begin{equation}
+U_Z(\lambda x)=\exp\Big(i\lambda\sum_{j=1}^{n}x_jZ_j+i\lambda^{2}\sum_{j<j'}x_jx_{j'}Z_jZ_{j'}\Big).
+\end{equation}
+Here the number of qubits equals the number of PCA components $n$.
+\item \textbf{Hamiltonian evolution feature map}~\cite{huang2021power,shaydulin2022bandwidth}: Trotterized evolution of a product of Haar-random single-qubit states under nearest-neighbour XYZ (Heisenberg) couplings weighted by the input features, $H_j = X_jX_{j+1}+Y_jY_{j+1}+Z_jZ_{j+1}$, with evolution time $t$ (acting as the scaling factor $\lambda$) and $T$ Trotter steps. This map needs $n+1$ qubits for an $n$-dimensional input, so its runs span 3 to 17 qubits.
+\end{itemize}
+
+\textbf{Kernel SVC solver:} Kernel values $K_{ij}=|\langle\psi(x_i)|\psi(x_j)\rangle|^{2}$ are used in Support Vector Classifiers (SVC) with precomputed kernels, tuning the penalty hyperparameter $C\in\{0.006,\dots,1024\}$ following~\cite{shaydulin2022bandwidth}. The bandwidth is searched on a logarithmic grid $\lambda\in[10^{-3},10^{0}]$. On hardware, each $K_{ij}$ is estimated as the frequency of the all-zero outcome of the circuit $U^{\dagger}(x_j)U(x_i)$.
+
+\section{Baselines \& Experimental Controls}
+\textbf{Classical baseline:} A classical radial basis function (RBF) kernel SVM, $k(x_i,x_j)=\exp(-\gamma\|x_i-x_j\|^{2})$, evaluated on the same folds and test samples over a logarithmic grid of $\gamma$ of the same size as the $\lambda$ grid, together with the regularizer $C$.
+
+\textbf{Noise \& hardware controls:} Exact statevector simulations are the noise-free reference. Finite sampling noise is evaluated with 5{,}000 shots per kernel entry~\cite{shaydulin2022bandwidth} and with a sweep of shot counts $N\in\{10^{2},10^{3},10^{4},10^{5}\}$, to find when concentration becomes indistinguishable from measurement noise. Noisy matrices are projected onto the nearest positive semi-definite matrix in Frobenius norm~\cite{shaydulin2022bandwidth}. A realistic noise model is built in Qiskit Aer from the calibration data of an IBM Quantum backend. On IBM Quantum hardware, kernel entries for a small subset of points are measured at 2--3 qubit counts and compared with the noise-model simulator; the number of circuits is sized to our 10 minutes of QPU time per month.
+
+\section{Weekly Work Plan}
+The weekly plan to complete this project is given in Table~\ref{tab:plan}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

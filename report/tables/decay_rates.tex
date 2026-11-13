@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering
+\caption{Decay of the off-diagonal kernel variance with qubit count (exact kernels). Slope of $\ln\sigma^2_\lambda$ vs.\ $n$ with 95\% CI over 5 seeds, and fit quality of exponential ($\ln\sigma^2$ vs.\ $n$) and power-law ($\ln\sigma^2$ vs.\ $\ln n$) models.}
+\label{tab:decay}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llllll}
+\toprule
+Data & $\lambda$ & $d\ln\sigma^2/dn$ & $R^2_{\exp}$ & $R^2_{\mathrm{pow}}$ & $\sigma^2(16)$ \\
+\midrule
+Fashion-MNIST & $2^{-8}$ & $0.288\pm0.065$ & 0.796 & 0.964 & 4.6e-07 \\
+Fashion-MNIST & $2^{-6}$ & $0.285\pm0.064$ & 0.794 & 0.964 & 1.1e-04 \\
+Fashion-MNIST & $2^{-4}$ & $0.249\pm0.055$ & 0.782 & 0.957 & 1.4e-02 \\
+Fashion-MNIST & $2^{-2}$ & $0.061\pm0.009$ & 0.486 & 0.759 & 3.9e-02 \\
+Fashion-MNIST & $2^{0}$ & $-0.452\pm0.033$ & 0.999 & 0.930 & 1.1e-04 \\
+Fashion-MNIST & $2^{1}$ & $-0.891\pm0.043$ & 0.999 & 0.930 & 2.2e-07 \\
+Synthetic & $2^{-8}$ & $0.140\pm0.008$ & 0.917 & 1.000 & 3.0e-08 \\
+Synthetic & $2^{-6}$ & $0.139\pm0.008$ & 0.916 & 1.000 & 7.6e-06 \\
+Synthetic & $2^{-4}$ & $0.125\pm0.007$ & 0.897 & 0.998 & 1.4e-03 \\
+Synthetic & $2^{-2}$ & $-0.054\pm0.006$ & 0.590 & 0.307 & 8.7e-03 \\
+Synthetic & $2^{0}$ & $-0.927\pm0.027$ & 0.998 & 0.893 & 1.8e-07 \\
+Synthetic & $2^{1}$ & $-1.115\pm0.009$ & 0.999 & 0.905 & 9.9e-09 \\
+\bottomrule
+\end{tabular}
+\end{table}

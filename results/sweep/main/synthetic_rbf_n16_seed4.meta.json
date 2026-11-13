@@ -1,0 +1,47 @@
+{
+  "dataset": "synthetic",
+  "model": "rbf",
+  "n": 16,
+  "seed": 4,
+  "shots": [
+    Infinity,
+    100.0,
+    1000.0,
+    10000.0,
+    100000.0
+  ],
+  "reps": 2,
+  "product": false,
+  "n_per_class": 150,
+  "tag": "main",
+  "synth_sep": 2.0,
+  "threads": 4,
+  "git_commit": "5810bcfaeb713365e914b3448a47b90a9802b381",
+  "grid": [
+    9.5367431640625e-07,
+    3.814697265625e-06,
+    1.52587890625e-05,
+    6.103515625e-05,
+    0.000244140625,
+    0.0009765625,
+    0.00390625,
+    0.015625,
+    0.0625,
+    0.25,
+    1.0,
+    4.0
+  ],
+  "C_grid": [
+    0.1,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "fold_file": "synthetic",
+  "fold_file_sha256": "f7e771fed4d9acaa625c4a08d84c7511520becafcbe39c3c3dc519095b62c844",
+  "python": "3.12.3",
+  "numpy": "2.5.4",
+  "sklearn": "1.9.1",
+  "qiskit": "2.6.2",
+  "runtime_s": 1.0
+}

@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering
+\caption{Test accuracy with tuned bandwidth (mean over 5 seeds $\times$ 5 outer folds; nested CV on identical fixed folds).}
+\label{tab:tuned}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lllllll}
+\toprule
+Data & Model & $n=2$ & $n=4$ & $n=8$ & $n=12$ & $n=16$ \\
+\midrule
+Fashion-MNIST & quantum (exact) & 0.935 & 0.947 & 0.952 & 0.949 & 0.953 \\
+Fashion-MNIST & quantum ($N=10^4$) & 0.928 & 0.938 & 0.951 & 0.948 & 0.958 \\
+Fashion-MNIST & quantum ($N=10^3$) & 0.925 & 0.942 & 0.939 & 0.941 & 0.953 \\
+Fashion-MNIST & RBF & 0.934 & 0.949 & 0.947 & 0.954 & 0.957 \\
+Fashion-MNIST & linear SVM & 0.935 & 0.954 & 0.956 & 0.957 & 0.961 \\
+Fashion-MNIST & logistic reg. & 0.931 & 0.953 & 0.955 & 0.957 & 0.961 \\
+Synthetic & quantum (exact) & 0.857 & 0.844 & 0.829 & 0.820 & 0.830 \\
+Synthetic & quantum ($N=10^4$) & 0.850 & 0.841 & 0.825 & 0.815 & 0.829 \\
+Synthetic & quantum ($N=10^3$) & 0.847 & 0.837 & 0.829 & 0.820 & 0.817 \\
+Synthetic & RBF & 0.857 & 0.844 & 0.823 & 0.823 & 0.825 \\
+Synthetic & linear SVM & 0.862 & 0.849 & 0.821 & 0.828 & 0.830 \\
+Synthetic & logistic reg. & 0.863 & 0.849 & 0.824 & 0.827 & 0.835 \\
+\bottomrule
+\end{tabular}
+\end{table}

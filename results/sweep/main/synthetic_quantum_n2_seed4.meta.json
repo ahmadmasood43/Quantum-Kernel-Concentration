@@ -1,0 +1,47 @@
+{
+  "dataset": "synthetic",
+  "model": "quantum",
+  "n": 2,
+  "seed": 4,
+  "shots": [
+    Infinity,
+    100.0,
+    1000.0,
+    10000.0,
+    100000.0
+  ],
+  "reps": 2,
+  "product": false,
+  "n_per_class": 150,
+  "tag": "main",
+  "synth_sep": 2.0,
+  "threads": 4,
+  "git_commit": "c5615a4ce568a6799e5517894c0ce35b2ce05a1c",
+  "grid": [
+    0.0009765625,
+    0.001953125,
+    0.00390625,
+    0.0078125,
+    0.015625,
+    0.03125,
+    0.0625,
+    0.125,
+    0.25,
+    0.5,
+    1.0,
+    2.0
+  ],
+  "C_grid": [
+    0.1,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "fold_file": "synthetic",
+  "fold_file_sha256": "f7e771fed4d9acaa625c4a08d84c7511520becafcbe39c3c3dc519095b62c844",
+  "python": "3.12.3",
+  "numpy": "2.5.4",
+  "sklearn": "1.9.1",
+  "qiskit": "2.6.2",
+  "runtime_s": 7.2
+}
