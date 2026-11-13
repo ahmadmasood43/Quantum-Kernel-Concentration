@@ -1,0 +1,43 @@
+{
+  "dataset": "fmnist",
+  "model": "quantum",
+  "n": 16,
+  "seed": 3,
+  "shots": [
+    Infinity
+  ],
+  "reps": 2,
+  "product": false,
+  "n_per_class": 50,
+  "tag": "m100",
+  "synth_sep": 2.0,
+  "threads": 4,
+  "git_commit": "6a341ee3183c0ed14bc474f532b376f96f0cc9fc",
+  "grid": [
+    0.0009765625,
+    0.001953125,
+    0.00390625,
+    0.0078125,
+    0.015625,
+    0.03125,
+    0.0625,
+    0.125,
+    0.25,
+    0.5,
+    1.0,
+    2.0
+  ],
+  "C_grid": [
+    0.1,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "fold_file": "fmnist_m100",
+  "fold_file_sha256": "2d80f74de7fd0182eac268d80c8ee1cee85d367b976b8882658a247059a4c15f",
+  "python": "3.12.3",
+  "numpy": "2.5.4",
+  "sklearn": "1.9.1",
+  "qiskit": "2.6.2",
+  "runtime_s": 296.2
+}

@@ -19,7 +19,7 @@ Produced by `experiments/analyze.py` from saved results; regenerate rather than 
 - Proposal falsifier [fmnist] n=16, lambda* at N=10000: spread/noise at 5,000 shots median 878 (ok); acc 0.958 vs RBF 0.957 (Wilcoxon worse p=0.6); vs chance max p=7.1e-65 -> not rejected
 - Proposal falsifier [synthetic] n=16, lambda* at N=1000: spread/noise at 5,000 shots median 75 (ok); acc 0.817 vs RBF 0.825 (Wilcoxon worse p=0.063); vs chance max p=5.9e-27 -> not rejected
 - Proposal falsifier [synthetic] n=16, lambda* at N=10000: spread/noise at 5,000 shots median 66 (ok); acc 0.829 vs RBF 0.825 (Wilcoxon worse p=0.73); vs chance max p=8.4e-29 -> not rejected
-- table: ablations (1 variants)
+- table: ablations (5 variants)
 - figures: noise_model_variance.pdf, noise_model_diagonal.pdf
 - table: resources (14 rows)
 - hardware: pilot -> hardware_vs_noise_pilot.pdf
