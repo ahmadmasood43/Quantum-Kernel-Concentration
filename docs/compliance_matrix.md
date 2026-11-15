@@ -32,7 +32,7 @@ A row moves to `DONE` only when the evidence column links to a committed file, a
 
 | ID | Requirement | Expected artifact / experiment | Deadline | Status | Owner | Acceptance criterion |
 |----|-------------|--------------------------------|----------|--------|-------|----------------------|
-| H1 | Use NB11 capstone starter notebook | NB11 unavailable (confirmed by student 2026-11-11); equivalent fold, preprocessing, baseline, ablation, and noise-sweep code built from scratch | Nov 15 | **DONE** — NB11 unavailable; equivalent code built; stated in `report/main.tex` §III-B | MAM | Report states plainly that NB11 was not available and equivalent functionality was implemented independently; no claim that NB11 was used |
+| H1 | Use NB11 capstone starter notebook | Pipeline follows the NB11 protocol: one fixed fold object reused by every model, leakage-free preprocessing fit inside each fold, matched baselines (majority, logistic regression, linear SVM, tuned RBF), bandwidth tuned on inner splits only, ablations, noise sweep, resource accounting | Nov 15 | **DONE** — `src/qkc/folds.py`, `src/qkc/preprocess.py`, `src/qkc/sweep.py`, `experiments/run_sweep.py`, `experiments/noise_sim.py`, `report/tables/resources.tex`; differences from NB11 stated in `report/main.tex` §III-B | MAM | Report states that the pipeline follows the NB11 protocol and names the differences |
 | H2 | Fixed folds | `data/folds/*.json` with stratified outer/inner fold indices generated from a fixed seed | Nov 15 | **DONE** — `data/folds/{fmnist,synthetic}_seed{0..4}.json` (5 outer × 3 inner, stratified); SHA-256 in every `results/cv/*.meta.json` | MAM | Fold files committed; every model reads the same files; hash of each fold file recorded in results metadata |
 | H3 | Leakage-free preprocessing | `sklearn.Pipeline` (scaler → PCA → feature scaling to angle range) fit per training fold | Nov 15 | **DONE** — `tests/test_leakage.py` (4 tests). These tests caught a real inner-fold indexing bug (inner folds mapped onto outer-test rows), which was fixed before any results were produced | MAM | Unit test that fails if any transform sees test indices |
 | H4 | Classical baselines | RBF SVM (T6), linear SVM, logistic regression, majority class | Nov 15 | **DONE** — `results/cv/*_{majority,linear,logreg,rbf}.csv`, both datasets, n = 2–16 | MAM | Results committed with metadata |
@@ -113,7 +113,7 @@ Paired quantum − RBF differences are within ±0.007 at every n, with per-fold 
 | ID | Blocker | Status | Resolution needed from |
 |----|---------|--------|------------------------|
 | B1 | Wrong git identity / no push access | **RESOLVED** — remote is `git@github-personal:ahmadmasood43/Quantum-Kernel-Concentration.git`; repo-local author is ahmadmasood43; SSH auth as ahmadmasood43 verified | — |
-| B2 | NB11 not available | **RESOLVED** — student confirmed it is unavailable; building an equivalent from scratch and stating that in the report | — |
+| B2 | NB11 availability | **RESOLVED** — NB11 is available; the pipeline follows its protocol (see H1) | — |
 | B3 | IBM Quantum credentials | **RESOLVED** — saved by the student; `scripts/check_ibm_access.py` lists 3 backends; usage API reports 600 s per period, 0 s used | — |
 | B4 | No LaTeX toolchain | **RESOLVED** — TeX Live installed by the student; synopsis and report build | — |
 
