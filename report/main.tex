@@ -1,7 +1,6 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
-\usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 
 \begin{document}
@@ -14,144 +13,68 @@
 \maketitle
 
 \begin{abstract}
-Quantum kernel values for distinct inputs can concentrate around a common value as the number of qubits grows, which makes the kernel matrix uninformative and hard to estimate from a finite number of measurement shots. We study how fast this concentration happens for an IQP-type $ZZ$ feature-map kernel and whether a bandwidth hyperparameter $\lambda$, applied as an input rescaling $\mathbf{x}\to\lambda\mathbf{x}$, restores learnability. This report covers the first stage of the project: a leakage-free evaluation pipeline with fixed nested cross-validation folds, two datasets (a Fashion-MNIST binary task reduced by PCA and a synthetic Gaussian task with a known Bayes-optimal accuracy), four classical baselines, and an exactly simulated quantum kernel for $n=2$ to $16$ qubits. With $\lambda$ tuned by inner cross-validation, the quantum kernel reaches a mean test accuracy of 0.936--0.960 on Fashion-MNIST and 0.819--0.856 on the synthetic task, close to its Bayes-optimal value of 0.841. On both datasets it is within 0.007 of a tuned RBF kernel at every qubit count. The selected bandwidth decreases with $n$ and falls on the lower edge of the search grid in 17--19\% of fits, which motivates the wider grid planned for the next stage, together with direct measurement of the kernel variance, finite-shot estimation, a device noise model, and IBM hardware runs.
+Quantum kernel values can concentrate around a common value as the number of qubits grows, making the kernel uninformative and hard to estimate from finite shots. We study how fast this happens for an IQP-type $ZZ$ kernel and whether a bandwidth $\lambda$, applied as $\mathbf{x}\to\lambda\mathbf{x}$, restores learnability. This first-stage report describes a leakage-free pipeline with fixed nested cross-validation folds, Fashion-MNIST and synthetic data, four classical baselines, and an exactly simulated quantum kernel for 2--16 qubits. With tuned $\lambda$, the quantum kernel reaches 0.936--0.960 test accuracy on Fashion-MNIST and 0.819--0.856 on the synthetic task (Bayes-optimal 0.841), within 0.007 of a tuned RBF kernel at every qubit count.
 \end{abstract}
 
 \section{Introduction}
-Quantum kernel methods map classical data into quantum states and use the overlap between two states as a similarity measure for a classical learner such as a support vector machine (SVM)~\cite{havlicek2019supervised,schuld2019feature}. The feature space is the Hilbert space of $n$ qubits, whose dimension grows as $2^{n}$. This is the source of the hoped-for expressive power, but it also creates a problem. As $n$ grows, the overlaps between states that encode different inputs can become exponentially small and nearly the same for every pair of inputs. The off-diagonal entries of the kernel matrix then approach a common value, the matrix approaches the identity, and a model trained on it generalizes poorly~\cite{huang2021power}. Thanasilp \emph{et al.}\ called this effect \emph{exponential concentration}. They identified expressivity, entanglement, global measurements, and hardware noise as its sources, and showed that a polynomial number of measurement shots is then not enough to tell kernel values apart~\cite{thanasilp2024concentration}. On a quantum device every kernel entry is estimated from a finite number of shots, so concentrated values can become indistinguishable from measurement noise.
-
-A simple countermeasure is to scale the input features by a bandwidth $\lambda<1$ before encoding them. Shaydulin and Wild showed numerically that tuning this scaling factor can restore generalization for quantum kernels with many qubits, with performance that becomes competitive with the best classical methods~\cite{shaydulin2022bandwidth}, and Canatar \emph{et al.}\ analyzed how bandwidth controls generalization in quantum kernel models~\cite{canatar2022bandwidth}. Two practical questions remain. First, reducing $\lambda$ moves every kernel value toward $1$, so there may be no bandwidth at which the kernel is both informative and measurable with a realistic shot budget. Second, a strongly scaled-down quantum kernel may behave much like a classical kernel, so any benefit has to be measured against an equally well-tuned classical baseline.
+Quantum kernel methods encode data into quantum states and use state overlaps as a kernel for a classical learner such as a support vector machine (SVM)~\cite{havlicek2019supervised,schuld2019feature}. As the qubit count $n$ grows, overlaps between different inputs can become exponentially small and nearly equal, so the kernel matrix approaches the identity and the model generalizes poorly~\cite{huang2021power}. Thanasilp \emph{et al.}\ called this \emph{exponential concentration}, traced it to expressivity, entanglement, global measurements, and noise, and showed that a polynomial number of shots then cannot tell kernel values apart~\cite{thanasilp2024concentration}. Scaling the inputs by a bandwidth $\lambda<1$ is a simple countermeasure: Shaydulin and Wild showed that tuning it restores generalization and makes quantum kernels competitive with the best classical methods~\cite{shaydulin2022bandwidth}, and Canatar \emph{et al.}\ analyzed how bandwidth controls generalization~\cite{canatar2022bandwidth}. Open questions are whether a bandwidth exists at which the kernel is both informative and measurable with finite shots, and whether the scaled kernel does better than an equally tuned classical kernel.
 
 \textbf{Research question.} How fast do quantum kernel values concentrate as the qubit count grows, and does a bandwidth hyperparameter restore learnability?
 
-\textbf{Hypotheses.} \emph{H1:} at fixed $\lambda=1$, the off-diagonal kernel variance decays exponentially with $n$. \emph{H2:} with $\lambda$ chosen by cross-validation, the kernel keeps enough spread to be measured with 5{,}000 shots, and its test accuracy stays well above chance and is not worse than a tuned RBF kernel up to $n=16$.
+\textbf{Hypotheses.} \emph{H1:} at $\lambda=1$, the off-diagonal kernel variance decays exponentially with $n$. \emph{H2:} with $\lambda$ chosen by cross-validation, the kernel keeps enough spread to be measured with 5{,}000 shots, and its test accuracy stays well above chance and is not worse than a tuned RBF kernel up to $n=16$.
 
-\textbf{Falsifier} (as stated in our proposal). At $n=16$ with 5{,}000 shots per kernel entry, H2 is rejected if (a) at the cross-validated bandwidth $\lambda^{*}$ the off-diagonal variance $\mathrm{Var}(K_{ij})$, $i\neq j$, is smaller than the average shot-noise variance of a single entry, $\overline{K_{ij}(1-K_{ij})}/5000$, meaning that the true spread is buried in measurement noise; or (b) the test accuracy at $\lambda^{*}$ is not significantly above chance (one-sided binomial test against 50\%, $\alpha=0.05$), or is significantly below the tuned RBF baseline. H1 is rejected if, at $\lambda=1$, the slope of $\ln\mathrm{Var}(K_{ij})$ against $n$ is not negative with a 95\% confidence interval excluding zero. Section~\ref{sec:stats} describes how the RBF comparison in (b) is applied to our evaluation design.
+\textbf{Falsifier} (from our proposal). At $n=16$ with 5{,}000 shots, H2 is rejected if (a) at the cross-validated $\lambda^{*}$ the off-diagonal variance is below the mean single-entry shot-noise variance $\overline{K_{ij}(1-K_{ij})}/5000$, or (b) the test accuracy at $\lambda^{*}$ is not significantly above chance (one-sided binomial test, $\alpha=0.05$) or is significantly below the tuned RBF baseline. H1 is rejected if, at $\lambda=1$, the slope of $\ln\mathrm{Var}(K_{ij})$ against $n$ has a 95\% confidence interval that does not lie below zero.
 
-\textbf{Planned contributions.} Over the course of the project we will (i) measure the off-diagonal kernel variance and test accuracy from 2 to 16 qubits over a bandwidth grid in exact simulation, (ii) determine where concentration becomes indistinguishable from finite-shot noise, (iii) repeat the variance measurements under a noise model derived from IBM device calibration data and on IBM quantum hardware at 2--3 qubit counts, and (iv) compare every quantum result with an RBF-kernel SVM tuned with the same search protocol.
+This report covers the first milestone: the data pipeline, fixed folds, classical baselines, and the first quantum model, in exact (noise-free, infinite-shot) simulation.
 
-\textbf{This report.} This report covers the first milestone: the data pipeline, the fixed cross-validation folds, the classical baselines, and the first working quantum model, evaluated in exact (noise-free, infinite-shot) simulation. Section~\ref{sec:background} reviews the background, Section~\ref{sec:methods} describes the methods, Section~\ref{sec:results} reports the first results, and Section~\ref{sec:discussion} discusses them and the next steps.
+\section{Background}
+The fidelity kernel of a feature map $U(\mathbf{x})$ is $k(\mathbf{x},\mathbf{x}')=|\langle0^{n}|U^{\dagger}(\mathbf{x}')U(\mathbf{x})|0^{n}\rangle|^{2}$, the probability of the all-zero outcome of the compute--uncompute circuit~\cite{havlicek2019supervised}. With $N$ shots, each entry is a binomial frequency with variance $k(1-k)/N$; when the true spread of the off-diagonal entries falls below this level, the measured kernel no longer carries information about the inputs, which is what criterion (a) tests. For an IQP-type map, $\lambda$ scales the single-qubit angles and $\lambda^{2}$ the two-qubit angles, so a small $\lambda$ keeps the encoded states close and the kernel values away from zero~\cite{shaydulin2022bandwidth}.
 
-\section{Background}\label{sec:background}
+\section{Methods}
+\textbf{Data.} Fashion-MNIST~\cite{xiao2017fashion}, T-shirt/top (label 0) vs.\ Pullover (label 2): for each of five seeds, 150 images per class are drawn from the official training split (300 points, pixels in $[0,1]$). As a controlled second dataset we use two isotropic Gaussian classes in $\mathbb{R}^{n}$ with means $\pm\mathbf{u}$ ($\mathbf{u}$ a random unit vector), whose Bayes-optimal accuracy is $\Phi(1)\approx0.841$ for every $n$. Because each extra qubit on Fashion-MNIST receives a weaker PCA component, the synthetic set is needed to attribute changes with $n$ to the kernel rather than to the data.
 
-\subsection{Fidelity quantum kernels}
-A quantum feature map is a parameterized circuit $U(\mathbf{x})$ that encodes an input $\mathbf{x}\in\mathbb{R}^{d}$ into the state $|\phi(\mathbf{x})\rangle=U(\mathbf{x})|0^{n}\rangle$. The fidelity kernel is the squared overlap of two such states,
+\textbf{Folds and preprocessing.} The pipeline follows the protocol of the course's NB11 starter notebook (fixed folds for every model, preprocessing fit inside each fold, matched baselines, bandwidth tuned on inner splits), but standardizes and applies PCA instead of min--max scaling to $[0,\pi]$, and uses exact statevectors at this stage. Each seed has five stratified outer folds with three stratified inner folds each, stored on disk and hashed in every result. Preprocessing (standardize, PCA to $n$ components for Fashion-MNIST, standardize again) is fit on training rows only; unit tests confirm that corrupting held-out rows changes neither the fitted transforms nor the selected hyperparameters.
+
+\textbf{Quantum kernel.} The input is encoded as $\mathbf{z}=\lambda\mathbf{x}$ with $U(\mathbf{z})=\prod_{\ell=1}^{2}D(\mathbf{z})H^{\otimes n}$ and
 \begin{equation}
-k(\mathbf{x},\mathbf{x}')=|\langle\phi(\mathbf{x})|\phi(\mathbf{x}')\rangle|^{2}=|\langle0^{n}|U^{\dagger}(\mathbf{x}')U(\mathbf{x})|0^{n}\rangle|^{2}.
+D(\mathbf{z})=\exp\Bigl(i\sum_{j=1}^{n} z_j Z_j + i\sum_{j=1}^{n-1} z_j z_{j+1} Z_j Z_{j+1}\Bigr),
 \end{equation}
-It is a valid (positive semi-definite) kernel and can be used directly in an SVM with a precomputed kernel matrix~\cite{havlicek2019supervised,schuld2019feature}. On a quantum computer, $k(\mathbf{x},\mathbf{x}')$ is the probability of the all-zero outcome after running the compute--uncompute circuit $U^{\dagger}(\mathbf{x}')U(\mathbf{x})$, so it can be estimated by repeating the circuit and counting how often all qubits return $0$. Havl\'{i}\v{c}ek \emph{et al.}\ proposed this approach with a feature map built from Hadamard layers and diagonal $Z$ and $ZZ$ rotations, the IQP-type map that we use~\cite{havlicek2019supervised}.
+an IQP-type map~\cite{havlicek2019supervised} with nearest-neighbour $ZZ$ terms. The compute--uncompute circuit uses $n$ qubits, $4(n-1)$ two-qubit $R_{ZZ}$ gates and has logical depth $2n+10$ (60 gates and depth 42 at $n=16$); no shots are used in this stage. Statevectors are computed exactly with a batched Walsh--Hadamard transform and agree with Qiskit statevector simulation to $10^{-10}$.
 
-\subsection{Exponential concentration}
-For a fixed pair of distinct inputs, the kernel value $k(\mathbf{x},\mathbf{x}')$ can shrink exponentially with $n$, and its variance over pairs of inputs shrinks with it. Thanasilp \emph{et al.}\ showed that this concentration arises from the expressivity of the feature map, from entanglement, from global measurements, and from hardware noise, and that a polynomial number of shots is then not enough to resolve the kernel values~\cite{thanasilp2024concentration}. Huang \emph{et al.}\ observed that when the quantum kernel matrix approaches the identity, the model generalizes poorly, and proposed projected quantum kernels as one remedy~\cite{huang2021power}. In this project we measure concentration through the mean and the variance of the off-diagonal entries of the kernel matrix.
+\textbf{Models and selection.} All kernel models are SVMs with precomputed kernels. For each outer fold, the bandwidth and $C\in\{0.1,1,10,100\}$ are chosen by mean inner-fold accuracy, and the refit model is scored once on the outer test fold. The quantum $\lambda$ is searched over 10 log-spaced values in $[0.01,\pi]$; the RBF kernel uses $\gamma=g/n$ with 10 log-spaced $g\in[10^{-3},10]$. Further baselines are a linear SVM, logistic regression (both with $C$ tuned), and the majority class. We report the mean and standard deviation over 25 outer folds (5 seeds $\times$ 5 folds). Since there is no single test set, the proposal's McNemar test is replaced by a one-sided Wilcoxon signed-rank test on the 25 paired fold accuracies.
 
-\subsection{Bandwidth}
-For classical kernels such as the radial basis function (RBF) kernel $k(\mathbf{x},\mathbf{x}')=\exp(-\gamma\|\mathbf{x}-\mathbf{x}'\|^{2})$, the bandwidth parameter $\gamma$ controls how fast the kernel decays with distance and must be tuned to avoid underfitting or overfitting. Shaydulin and Wild introduced the analogous hyperparameter for quantum kernels, a scaling factor $\lambda$ that multiplies the input before encoding, and found that $\lambda=1$ is a poor choice for the datasets and feature maps they considered, while an optimized $\lambda$ makes accuracy improve with the qubit count until it reaches the level of the best classical methods~\cite{shaydulin2022bandwidth}. For an IQP-type map, $\lambda$ multiplies the single-qubit angles and $\lambda^{2}$ multiplies the two-qubit angles, so a small $\lambda$ keeps the encoded states close to each other and the kernel values away from zero. Canatar \emph{et al.}\ studied analytically how the bandwidth controls generalization in quantum kernel models~\cite{canatar2022bandwidth}.
+\textbf{Deviations from the proposal.} Nested cross-validation on 300 points per seed instead of one 1{,}200/200 split; nearest-neighbour instead of all-to-all $ZZ$ terms; no Hamiltonian-evolution map yet; $C\in\{0.1,\dots,100\}$ and $\lambda\in[0.01,\pi]$; an added synthetic dataset; Wilcoxon instead of McNemar. Next stages add a wider $\lambda$ grid, the off-diagonal variance, binomial finite-shot sampling ($N=10^{2}$--$10^{5}$ and 5{,}000), an IBM-calibrated noise model, and hardware runs at 2--3 qubit counts.
 
-\subsection{Finite-shot estimation}
-If each kernel entry is estimated from $N$ shots, the estimate $\hat{k}$ is the frequency of the all-zero outcome, a binomial draw with success probability $k$, so its variance is $k(1-k)/N$. When the true spread of the off-diagonal entries across pairs of inputs is smaller than this shot-noise variance, the measured kernel no longer carries information about the inputs. Criterion (a) of our falsifier compares the two quantities directly.
-
-\section{Methods}\label{sec:methods}
-
-\subsection{Data}
-\textbf{Fashion-MNIST.} The primary dataset is Fashion-MNIST~\cite{xiao2017fashion}, restricted to the binary pair T-shirt/top (label 0) vs.\ Pullover (label 2). For each of five seeds ($0$--$4$) we draw a class-balanced subsample of 150 images per class without replacement from the official training split, giving 300 points per seed. Each image is a vector in $\mathbb{R}^{784}$ with pixel values scaled to $[0,1]$. The SHA-256 checksums of the downloaded files are recorded in the repository.
-
-\textbf{Synthetic data.} To separate the effect of $n$ and $\lambda$ from the structure of the images, we also use a synthetic dataset: two isotropic Gaussian classes in $\mathbb{R}^{n}$ with unit covariance and means $\pm\frac{s}{2}\mathbf{u}$, where $\mathbf{u}$ is a random unit vector and $s=2$. Each seed generates 150 points per class. The Bayes-optimal accuracy is $\Phi(s/2)=\Phi(1)\approx0.841$ for every $n$, where $\Phi$ is the standard normal distribution function. With Fashion-MNIST, increasing $n$ also changes the data, because each new qubit receives a further, less informative PCA component, and the best achievable accuracy is unknown. In the synthetic dataset every feature is equally informative and the achievable accuracy is fixed, so any change with $n$ comes from the model rather than from the data.
-
-\subsection{Folds and preprocessing}
-Our pipeline follows the protocol of the course's NB11 starter notebook: one fixed set of folds reused by every model, preprocessing fit inside each fold, matched classical baselines, and bandwidth tuned on inner splits only. It differs from NB11 in two ways: features are standardized and reduced by PCA rather than min--max scaled to $[0,\pi]$, and at this stage kernels are computed from exact statevectors rather than sampled with shots.
-
-For each seed, five stratified outer folds are generated once, and each outer training set is split into three stratified inner folds. The fold indices are stored on disk, every model reads the same files, and each result records the SHA-256 hash of its fold file. Preprocessing consists of standardization, PCA to $n$ components (Fashion-MNIST only), and a second standardization that gives every component unit variance, so that every qubit receives input on the same scale and $\lambda$ has the same meaning for every $n$. The preprocessing is fit on the training rows of each inner or outer split and only then applied to the held-out rows. A unit test corrupts the held-out rows and checks that neither the fitted transforms nor the selected hyperparameters change, and a second test checks that the outer folds partition the data and that the inner folds stay inside the outer training rows.
-
-\subsection{Quantum feature map and kernel}
-Each preprocessed input $\mathbf{x}\in\mathbb{R}^{n}$ is encoded on $n$ qubits as $\mathbf{z}=\lambda\mathbf{x}$, using an IQP-type $ZZ$ feature map~\cite{havlicek2019supervised} with $r=2$ layers and nearest-neighbour entanglement on a line:
-\begin{align}
-U(\mathbf{z}) &= \prod_{\ell=1}^{r} D(\mathbf{z})\,H^{\otimes n},\\
-D(\mathbf{z}) &= \exp\Bigl(i\sum_{j=1}^{n} z_j Z_j + i\sum_{j=1}^{n-1} z_j z_{j+1} Z_j Z_{j+1}\Bigr).
-\end{align}
-The single-qubit angles scale as $\lambda$ and the two-qubit angles as $\lambda^{2}$, as in~\cite{shaydulin2022bandwidth}. The kernel is the state fidelity $k_\lambda(\mathbf{x},\mathbf{x}')=|\langle0^{n}|U^{\dagger}(\lambda\mathbf{x}')U(\lambda\mathbf{x})|0^{n}\rangle|^{2}$. In circuit form, $\exp(iaZ)$ is an $R_Z(-2a)$ gate and $\exp(iaZZ)$ an $R_{ZZ}(-2a)$ gate, each up to a global phase. Each layer has $n$ Hadamard gates, $n$ $R_Z$ rotations, and $n-1$ $R_{ZZ}$ rotations, so the compute--uncompute circuit contains $4(n-1)$ two-qubit gates (Table~\ref{tab:resources}).
-
+\section{Results}
 \begin{table}[t]
 \centering
-\caption{Logical resources of the compute--uncompute circuit $U^{\dagger}(\lambda\mathbf{x}')U(\lambda\mathbf{x})$ before transpilation. Week~1 results use exact statevectors, so no shots are used.}
-\label{tab:resources}
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{rrrrr}
+\caption{Mean test accuracy over 25 outer folds with tuned hyperparameters. Standard deviations are 0.023--0.035 (Fashion-MNIST) and 0.037--0.059 (synthetic). Majority class: 0.500.}
+\label{tab:accuracy}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{rcccc}
 \toprule
-Qubits $n$ & $H$ & $R_Z$ & $R_{ZZ}$ (2Q) & Depth \\
+& \multicolumn{2}{c}{Fashion-MNIST} & \multicolumn{2}{c}{Synthetic} \\
+$n$ & Quantum & RBF & Quantum & RBF \\
 \midrule
-2 & 8 & 8 & 4 & 12 \\
-4 & 16 & 16 & 12 & 18 \\
-6 & 24 & 24 & 20 & 22 \\
-8 & 32 & 32 & 28 & 26 \\
-10 & 40 & 40 & 36 & 30 \\
-12 & 48 & 48 & 44 & 34 \\
-14 & 56 & 56 & 52 & 38 \\
-16 & 64 & 64 & 60 & 42 \\
+2  & 0.936 & 0.935 & 0.856 & 0.859 \\
+4  & 0.944 & 0.947 & 0.842 & 0.844 \\
+6  & 0.960 & 0.953 & 0.842 & 0.842 \\
+8  & 0.957 & 0.952 & 0.819 & 0.821 \\
+10 & 0.955 & 0.956 & 0.850 & 0.845 \\
+12 & 0.951 & 0.955 & 0.827 & 0.821 \\
+14 & 0.953 & 0.954 & 0.823 & 0.823 \\
+16 & 0.959 & 0.956 & 0.830 & 0.827 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Exact simulation.} Because $D$ is diagonal in the computational basis, we compute the statevectors exactly with a batched Walsh--Hadamard transform followed by an elementwise phase, and obtain Gram matrices from inner products of the statevectors. This avoids building a circuit for every pair of inputs. We validate the implementation against Qiskit statevector simulation of the same circuit; the two agree to within $10^{-10}$ for $n\in\{1,2,3,5\}$ and $\lambda\in\{0.05,0.7,2\}$. Further tests check that the states are normalized, that the kernel matrix is symmetric and positive semi-definite with a unit diagonal, and that every kernel entry approaches $1$ as $\lambda\to0$.
+Table~\ref{tab:accuracy} shows the tuned quantum and RBF kernels. On Fashion-MNIST, the linear SVM and logistic regression reach 0.931--0.961, the same range as the kernel models. On the synthetic task all four models lie between 0.819 and 0.863, around the Bayes-optimal 0.841. The paired quantum-minus-RBF difference is between $-0.003$ and $+0.007$ at every $n$ on both datasets. At $n=16$, the Wilcoxon test gives no evidence that the quantum kernel is worse than RBF ($p=0.67$ Fashion-MNIST, $p=0.76$ synthetic), and pooled predictions are far above chance (1{,}438/1{,}500 and 1{,}245/1{,}500 correct; binomial $p<10^{-100}$). The selected $\lambda$ decreases with $n$: its median on Fashion-MNIST is 0.129 at $n=2$ and 0.036 for $n\geq8$. It falls on the lowest grid value in 17\% (Fashion-MNIST) and 19\% (synthetic) of fits and never on the highest; the RBF bandwidth behaves the same way (18\%, 18.5\%).
 
-\subsection{Classical baselines and model selection}
-All kernel models are SVMs with precomputed kernel matrices. Hyperparameters are chosen by nested cross-validation: for each outer fold, the pair $(h,C)$, with $h$ the kernel bandwidth and $C\in\{0.1,1,10,100\}$, is selected by the mean validation accuracy over the three inner folds. The model is then refit on the full outer training set and scored once on the outer test set. The quantum bandwidth $\lambda$ is searched over 10 log-spaced values in $[0.01,\pi]$.
-
-The RBF baseline uses $\gamma=g/n$, with $g$ searched over 10 log-spaced values in $[10^{-3},10]$: the same grid size and the same selection protocol as for $\lambda$. Because each component has unit variance, $g=1$ corresponds to scikit-learn's default \texttt{gamma="scale"}. The other baselines are a linear-kernel SVM with $C$ tuned on the same grid, $\ell_2$-regularized logistic regression with $C$ tuned on the same grid, and the majority-class predictor, which gives the chance level of 0.5 on our balanced folds. For the quantum kernel and the RBF kernel we record whenever the selected bandwidth lies on an edge of its grid.
-
-\subsection{Evaluation and statistics}\label{sec:stats}
-We report test accuracy as the mean and standard deviation over the 25 outer test folds (5 seeds $\times$ 5 folds) for each model and qubit count; every point is tested exactly once per seed. Because all models use the same folds, quantum and RBF accuracies are compared fold by fold. Our proposal planned a single 200-sample test set and McNemar's test for the RBF comparison in criterion (b). With nested cross-validation there is no single test set, so we compare the two models with a one-sided Wilcoxon signed-rank test on the 25 paired fold accuracies ($\alpha=0.05$). The comparison with chance uses a one-sided binomial test on the pooled test predictions. In this report both tests are applied to exact kernels; the falsifier itself is evaluated at 5{,}000 shots in the next stage.
-
-\begin{table*}[t]
-\centering
-\caption{Week~1 test accuracy (mean and standard deviation over 5 seeds $\times$ 5 outer folds) with hyperparameters selected by nested cross-validation. Quantum: exact $ZZ$ fidelity kernel with tuned $\lambda$. The majority-class baseline scores 0.500 on every row. The Bayes-optimal accuracy of the synthetic task is 0.841.}
-\label{tab:accuracy}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{r|cccc|cccc}
-\toprule
-& \multicolumn{4}{c|}{Fashion-MNIST (T-shirt/top vs.\ Pullover)} & \multicolumn{4}{c}{Synthetic (two Gaussians)} \\
-$n$ & Quantum & RBF & Linear SVM & Log.\ reg. & Quantum & RBF & Linear SVM & Log.\ reg. \\
-\midrule
-2  & 0.936 (0.028) & 0.935 (0.035) & 0.935 (0.034) & 0.931 (0.036) & 0.856 (0.054) & 0.859 (0.050) & 0.862 (0.049) & 0.863 (0.050) \\
-4  & 0.944 (0.024) & 0.947 (0.026) & 0.954 (0.025) & 0.953 (0.026) & 0.842 (0.057) & 0.844 (0.059) & 0.849 (0.061) & 0.849 (0.059) \\
-6  & 0.960 (0.024) & 0.953 (0.027) & 0.957 (0.028) & 0.954 (0.031) & 0.842 (0.054) & 0.842 (0.055) & 0.842 (0.050) & 0.841 (0.050) \\
-8  & 0.957 (0.024) & 0.952 (0.026) & 0.956 (0.024) & 0.955 (0.025) & 0.819 (0.051) & 0.821 (0.048) & 0.821 (0.053) & 0.824 (0.051) \\
-10 & 0.955 (0.027) & 0.956 (0.024) & 0.953 (0.029) & 0.954 (0.029) & 0.850 (0.046) & 0.845 (0.045) & 0.845 (0.036) & 0.843 (0.041) \\
-12 & 0.951 (0.025) & 0.955 (0.026) & 0.957 (0.026) & 0.957 (0.028) & 0.827 (0.055) & 0.821 (0.057) & 0.828 (0.047) & 0.827 (0.044) \\
-14 & 0.953 (0.027) & 0.954 (0.023) & 0.958 (0.029) & 0.959 (0.026) & 0.823 (0.057) & 0.823 (0.053) & 0.824 (0.049) & 0.829 (0.048) \\
-16 & 0.959 (0.024) & 0.956 (0.029) & 0.961 (0.026) & 0.961 (0.025) & 0.830 (0.037) & 0.827 (0.044) & 0.830 (0.033) & 0.835 (0.041) \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\subsection{Software and reproducibility}
-The code is a Python package with the experiment scripts and tests in a public GitHub repository. All settings (seeds, class pair, sample sizes, folds, qubit counts, and grids) are defined in a single configuration file. Each results file is accompanied by a metadata file that records the grids, the fold-file hashes, the git commit, and the package versions (Python 3.12.3, NumPy 2.5.4, Qiskit 2.6.2, scikit-learn 1.9.1). The Week~1 results are produced by \texttt{make cv-fmnist} and \texttt{make cv-synthetic}.
-
-\subsection{Deviations from the proposal}
-Our proposal planned a single split of 1{,}200 training and 200 test samples, an IQP map with all-to-all $ZZ$ terms, a second (Hamiltonian-evolution) feature map, $C\in\{0.006,\dots,1024\}$, and $\lambda\in[10^{-3},1]$. The first stage differs as follows. (i) \emph{Evaluation:} we use 300 class-balanced points from the official training split for each of five seeds, with nested cross-validation (5 outer $\times$ 3 inner folds), so that every point is tested once and results carry a spread across subsamples. (ii) \emph{Entanglement:} $ZZ$ terms couple nearest neighbours only, which keeps the circuits shallow for the planned hardware runs. (iii) \emph{Second feature map:} the Hamiltonian-evolution map has not been implemented. (iv) \emph{Grids:} $C\in\{0.1,1,10,100\}$ and $\lambda\in[0.01,\pi]$. (v) \emph{Synthetic data:} added as a controlled second dataset. (vi) \emph{RBF comparison:} a paired Wilcoxon test over folds replaces McNemar's test, as described in Section~\ref{sec:stats}.
-
-\subsection{Planned methods for the next stages}
-The next stages follow the proposal's plan. We will widen the bandwidth grid, record the mean and variance of the off-diagonal kernel entries for every $(n,\lambda)$, and fit $\ln\mathrm{Var}(K_{ij})$ against $n$ at $\lambda=1$ to test H1. Finite-shot kernels will be obtained by sampling each entry from the binomial distribution for $N\in\{10^{2},10^{3},10^{4},10^{5}\}$ and at $N=5{,}000$, to locate where concentration becomes indistinguishable from shot noise. A noise model built in Qiskit Aer from the calibration data of an IBM Quantum backend will be used for noisy simulation, and kernel entries for a small set of points will be measured on IBM quantum hardware at 2--3 qubit counts and compared with the noise-model simulation, within our quota of 10 minutes of QPU time per month.
-
-\section{Results}\label{sec:results}
-
-\subsection{Test accuracy}
-Table~\ref{tab:accuracy} lists the test accuracy of every model for $n=2$ to $16$. On Fashion-MNIST, the tuned quantum kernel reaches 0.936 at $n=2$ and 0.944--0.960 for $n\geq4$. The RBF kernel, the linear SVM, and logistic regression give 0.931--0.961 over the same range. On the synthetic task, all four models stay between 0.819 and 0.863, around the Bayes-optimal accuracy of 0.841; the differences between qubit counts are within one standard deviation of the fold-to-fold spread. Every model is far above the majority-class level of 0.500.
-
-\subsection{Quantum vs.\ RBF kernel}
-Because all models share the same folds, we compare the quantum and RBF kernels fold by fold. The mean paired difference (quantum minus RBF) lies between $-0.003$ and $+0.007$ on Fashion-MNIST and between $-0.003$ and $+0.005$ on the synthetic task, at every qubit count. At $n=16$, the one-sided Wilcoxon signed-rank test does not indicate that the quantum kernel is worse than the RBF kernel ($p=0.67$ on Fashion-MNIST, $p=0.76$ on the synthetic task), and the pooled test predictions are far above chance (1{,}438 of 1{,}500 correct on Fashion-MNIST and 1{,}245 of 1{,}500 on the synthetic task; one-sided binomial test, $p<10^{-100}$ for both). With exact kernels, criterion (b) of the falsifier is therefore not met at $n=16$.
-
-\subsection{Selected bandwidth}
-The bandwidth chosen by inner cross-validation decreases with the qubit count. On Fashion-MNIST, the median selected $\lambda$ is 0.129 at $n=2$, 0.068 at $n=4$ and $6$, and 0.036 for every $n\geq8$. On the synthetic task it lies between 0.019 and 0.068, with a median of 0.036 for $n\geq12$. The selected $\lambda$ falls on the lowest value of the grid ($\lambda=0.01$) in 17\% of fits on Fashion-MNIST and 19\% on the synthetic task, and never on the highest value. The RBF bandwidth shows the same pattern, with lower-edge rates of 18\% and 18.5\%.
-
-\section{Discussion}\label{sec:discussion}
-The first stage shows that, with a tuned bandwidth, the exactly simulated $ZZ$ kernel remains learnable up to 16 qubits on both datasets, and that it performs on par with an RBF kernel tuned with the same protocol. This agrees with the finding of Shaydulin and Wild that an optimized scaling factor makes quantum kernels competitive with classical methods~\cite{shaydulin2022bandwidth}. The linear SVM and logistic regression do equally well, so after PCA the Fashion-MNIST pair is close to linearly separable. On the synthetic task all models sit near the Bayes-optimal accuracy, so neither task leaves room for the quantum kernel to outperform the classical ones; the value of these experiments lies in the controlled study of concentration, not in a search for an advantage.
-
-The decrease of the selected $\lambda$ with $n$ is consistent with the picture in Section~\ref{sec:background}: as qubits are added, a smaller bandwidth is needed to keep the encoded states close enough for the kernel to stay informative. The frequent choice of the lowest grid value shows that the grid used in this stage was too narrow at the small end. The optimum may lie below $\lambda=0.01$ for some folds, so the next stage uses a wider grid.
-
-This stage has three limitations. First, all kernels are exact, so the results say nothing yet about finite shots or hardware noise, which are the conditions in which concentration matters most. Second, we have not yet measured the kernel variance itself, so H1 and criterion (a) of the falsifier remain untested. Third, we use a single feature map and 300 points per seed. The next stages address the first two points as planned in the proposal: a wider bandwidth grid, direct measurement of the off-diagonal variance, binomial finite-shot estimation including 5{,}000 shots, a noise model from IBM device calibration data, and IBM hardware runs at 2--3 qubit counts.
+\section{Discussion}
+With a tuned bandwidth, the exact $ZZ$ kernel remains learnable up to 16 qubits and matches a tuned RBF kernel, in line with Shaydulin and Wild~\cite{shaydulin2022bandwidth}. Linear models do equally well and the synthetic task is at its Bayes limit, so these tasks test concentration rather than quantum advantage. The shrinking $\lambda^{*}$ fits the expectation that more qubits need a smaller bandwidth, and the frequent lower-edge choice shows that the grid must be extended below 0.01. Limitations: kernels are exact, the kernel variance has not yet been measured, so H1 and criterion (a) remain untested; and a single feature map with 300 points per seed is used.
 
 \section{Conclusion}
-We built a leakage-free evaluation pipeline with fixed nested cross-validation folds, two datasets, four classical baselines, and an exactly simulated IQP-type quantum kernel with a bandwidth hyperparameter, validated against Qiskit. With $\lambda$ tuned by inner cross-validation, the quantum kernel stays well above chance up to 16 qubits and matches a tuned RBF kernel within 0.007 at every qubit count. The selected bandwidth decreases with $n$ and often reaches the lower edge of the grid. The next stage will measure concentration directly and test the falsifier under finite shots, device noise, and real hardware.
+We built a leakage-free pipeline with fixed nested folds, two datasets, four baselines, and an exactly simulated, Qiskit-validated quantum kernel with a bandwidth hyperparameter. With tuned $\lambda$ it stays far above chance up to 16 qubits and matches a tuned RBF kernel within 0.007. The next stage measures concentration directly and tests the falsifier under finite shots, device noise, and IBM hardware.
 
 \section*{Author Contributions}
 Muhammad Ahmad Masood and Muhammad Waqas.
