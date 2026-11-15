@@ -17,15 +17,6 @@ make test    # kernel cross-check against Qiskit, leakage tests
 make demo    # one-seed end-to-end run at n = 2, 4 (writes results/demo/)
 ```
 
-### IBM Quantum access (needed for the hardware experiments only)
-
-Save your API key once. It is read with a hidden prompt and stored in `~/.qiskit/`, outside this repository:
-
-```bash
-.venv/bin/python scripts/save_ibm_account.py
-.venv/bin/python scripts/check_ibm_access.py   # read-only: lists backends, submits no jobs
-```
-
 ### LaTeX
 
 The report uses IEEEtran. On Debian/Ubuntu:
@@ -34,10 +25,9 @@ The report uses IEEEtran. On Debian/Ubuntu:
 sudo apt install texlive-latex-extra texlive-publishers texlive-science latexmk
 ```
 
-Build the synopsis and the report draft:
+Build the report draft:
 
 ```bash
-make synopsis
 make report
 ```
 
@@ -60,7 +50,6 @@ Seeds, grids, and dataset choices are defined in one place, `src/qkc/config.py`.
 | `tests/` | Kernel validation against Qiskit; leakage tests |
 | `data/` | Dataset and preprocessing documentation ([data/README.md](data/README.md)); fixed fold files |
 | `results/` | Saved results with metadata |
-| `report/` | Report draft (`main.tex`), synopsis, bibliography |
-| `scripts/` | IBM account setup and access check |
+| `report/` | Report draft (`main.tex`), bibliography |
 
 Figure-reproduction commands will be added to the table above as the figures are produced.

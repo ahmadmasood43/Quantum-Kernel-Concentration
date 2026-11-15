@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 QUBITS ?= 2 4 6 8 10 12 14 16
 
-.PHONY: setup test cv-fmnist cv-synthetic demo synopsis report clean-tex
+.PHONY: setup test cv-fmnist cv-synthetic demo report clean-tex
 
 setup:
 	uv venv --python 3.12 .venv
@@ -23,12 +23,8 @@ demo:
 	$(PY) -m pytest -q
 	$(PY) experiments/run_cv.py --dataset fmnist --models rbf quantum --qubits 2 4 --seeds 0 --outdir results/demo
 
-synopsis:
-	cd report/synopsis && latexmk -pdf -interaction=nonstopmode -halt-on-error synopsis.tex
-
 report:
 	cd report && latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 
 clean-tex:
 	cd report && latexmk -c main.tex
-	cd report/synopsis && latexmk -c synopsis.tex
