@@ -1,0 +1,3 @@
+model,n,qubits,scale,C,correct,total,test_accuracy,RBF_accuracy,only_quantum_correct,only_RBF_correct,p_binomial,p_McNemar,variance,shot_floor,slope_criterion_met,spread_below_noise,chance_test_failed,significantly_below_RBF,reject_bandwidth,reject_concentration
+Hamiltonian,16,17,0.01,1.0,189,200,0.945,0.965,1,5,2.560608937985755e-43,0.21875,0.020414712864647466,3.626688413920704e-05,True,False,False,False,False,False
+IQP,16,16,0.01,4.0,185,200,0.925,0.965,0,8,9.897116983876111e-39,0.0078125,0.004353361667768601,2.1507150483824894e-05,True,False,False,True,True,False

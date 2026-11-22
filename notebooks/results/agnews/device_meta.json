@@ -1,0 +1,7 @@
+{
+  "backend": "fake_manila",
+  "calibration_date": "2024-05-27 15:27:23-03:00",
+  "circuits": 108,
+  "shots": 5000,
+  "estimated_s": 516.5088000000012
+}
