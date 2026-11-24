@@ -34,7 +34,7 @@ This stage covers the simulation part of the proposal (no hardware run) and adds
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.66\textwidth]{figures/concentration_fmnist.png}
+\includegraphics[width=0.63\textwidth]{figures/concentration_fmnist.png}
 \caption{Fashion-MNIST: exact off-diagonal kernel variance vs.\ physical qubits for each bandwidth and the log-linear fit at $\lambda=1$ (right).}
 \label{fig:conc}
 \end{figure*}
@@ -97,7 +97,7 @@ A small bandwidth keeps the kernel spread well above the shot-noise floor on all
 
 Overall, no model is best on every dataset. RBF is best on two of three and needs no circuits. The Hamiltonian kernel never differs significantly from RBF, but its map needs eight times the CX gates of $ZZ$ at $n=16$ and loses most of its self-overlap in the noise model. The $ZZ$ kernel is cheaper, but its result depends on the dataset. We find no consistent quantum advantage.
 
-\textbf{Limitations.} Each result uses one 200-sample test set, and six McNemar tests were run without multiplicity correction. The grids have four values, and the exact Fashion-MNIST winners at $n=16$ sit at the lowest. Eight of the nine duplicate Speech pairs span two folds; no test clip is identical to a training clip. No hardware was used here; a separate earlier implementation was run on \texttt{ibm\_marrakesh} (branch \texttt{experimentation}).
+\textbf{Limitations.} The Fashion-MNIST sweep was loaded from stored results and not recomputed here. Each result uses one 200-sample test set, and six McNemar tests were run without multiplicity correction. The grids have four values, and the exact Fashion-MNIST winners at $n=16$ sit at the lowest. Eight of the nine duplicate Speech pairs span two folds; no test clip is identical to a training clip. No hardware was used here; a separate earlier implementation was run on \texttt{ibm\_marrakesh} (branch \texttt{experimentation}).
 
 \textbf{Future directions.} (i) Finer, wider $\lambda$ and $\gamma$ grids; (ii) repeated splits with multiplicity correction, to test whether the AG News and Speech differences persist; (iii) Speech Commands without duplicates; (iv) a shallower Hamiltonian map, since 10 instead of 40 Trotter steps changed accuracy by at most 0.5 points with a quarter of the gates; (v) IBM hardware runs at 2--3 qubit counts with a current calibration.
 
