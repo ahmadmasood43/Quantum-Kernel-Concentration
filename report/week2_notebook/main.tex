@@ -34,7 +34,7 @@ This stage covers the simulation part of the proposal (no hardware run) and adds
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.74\textwidth]{figures/concentration_fmnist.png}
+\includegraphics[width=0.66\textwidth]{figures/concentration_fmnist.png}
 \caption{Fashion-MNIST: exact off-diagonal kernel variance vs.\ physical qubits for each bandwidth and the log-linear fit at $\lambda=1$ (right).}
 \label{fig:conc}
 \end{figure*}
@@ -42,19 +42,23 @@ This stage covers the simulation part of the proposal (no hardware run) and adds
 \section{Results}
 \begin{table}[t]
 \centering
-\caption{Held-out accuracy (\%, 200 samples) at $n=16$ components (16 qubits IQP, 17 Hamiltonian). $p$: exact McNemar test of the 5{,}000-shot kernel vs.\ RBF.}
+\caption{Held-Out Accuracy (\%) at $n=16$ Components}
 \label{tab:acc}
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccccccc}
 \toprule
-& \multicolumn{3}{c}{IQP} & \multicolumn{3}{c}{Hamiltonian} & RBF \\
-Data & exact & 5k & $p$ & exact & 5k & $p$ & \\
+& \multicolumn{3}{c}{IQP ($ZZ$)} & \multicolumn{3}{c}{Hamiltonian} & RBF \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-8}
+Dataset & exact & 5k & $p$ & exact & 5k & $p$ & exact \\
 \midrule
 Fashion-MNIST & 95.0 & 94.5 & 0.25 & 94.5 & 95.5 & 1.00 & 96.0 \\
 AG News & 77.0 & 79.5 & 0.049 & 76.0 & 74.5 & 1.00 & 75.0 \\
-Speech Cmds & 95.5 & 92.5 & 0.008 & 94.0 & 94.5 & 0.22 & 96.5 \\
+Speech Commands & 95.5 & 92.5 & 0.008 & 94.0 & 94.5 & 0.22 & 96.5 \\
 \bottomrule
 \end{tabular}
+
+\vspace{3pt}
+\parbox{\columnwidth}{\footnotesize 200 test samples; 16 qubits (IQP), 17 qubits (Hamiltonian). 5k: 5{,}000 shots per kernel entry. $p$: exact McNemar test of the 5{,}000-shot kernel against RBF.}
 \end{table}
 
 \begin{table}[t]
@@ -78,20 +82,24 @@ Speech$^{\dagger}$ & IQP & $-1.36$ & $>0.999$ & 0.919 & -- \\
 \end{tabular}
 \end{table}
 
-\textbf{Concentration (H1).} At $\lambda=1$ every 95\% interval of the slope lies below zero, so H1 is not rejected by our criterion. That criterion only tests the sign of the slope. The exponential form fits well on Fashion-MNIST (Fig.~\ref{fig:conc}) and for the Hamiltonian kernel on AG News, but a power law fits the AG News IQP kernel better (Table~\ref{tab:conc}). On Speech Commands the variance stops decreasing near $1.25\times10^{-5}$. This equals $9/719{,}400$, the contribution of nine pairs of byte-identical training clips, whose kernel value is 1 at every width. Without these pairs the decay is again close to exponential ($R^{2}\geq0.998$).
+\textbf{Concentration (H1).} At $\lambda=1$ every 95\% interval of the slope lies below zero, so H1 is not rejected by our criterion. That criterion only tests the sign of the slope. The exponential form fits well on Fashion-MNIST (Fig.~\ref{fig:conc}) and for the Hamiltonian kernel on AG News, but a power law fits the AG News IQP kernel better (Table~\ref{tab:conc}). On Speech Commands the variance stops decreasing near $1.25\times10^{-5}$. This equals $9/719{,}400$, the contribution of nine pairs of byte-identical training clips, whose kernel value is 1 at every width. Without them the decay is close to exponential ($R^{2}\geq0.998$).
 
 \textbf{Measurability (H2a, b).} The selected bandwidth is small ($\lambda^{*}=0.01$, or 0.1 on AG News), and the spread there exceeds the 5{,}000-shot floor by a factor of 202 to 1{,}561 (Table~\ref{tab:conc}); 4 to 25 shots would already bring the noise below the spread. At $n=16$ both quantum kernels are far above chance (binomial $p\le1.3\times10^{-12}$). A tuned $\lambda$ also beats $\lambda=1$ in the 20-seed Hamiltonian control at $n=4$: 94.0\% vs.\ 81.8\% (Fashion-MNIST), 79.2\% vs.\ 67.4\% (AG News), and 81.0\% vs.\ 63.5\% (Speech).
 
-\textbf{Comparison with RBF (H2c).} On Fashion-MNIST we detect no significant difference from RBF, which does not establish equal performance. On AG News the IQP kernel is better than RBF (13 vs.\ 4 discordant samples, $p=0.049$). On Speech Commands the IQP kernel is significantly worse (0 vs.\ 8, $p=0.008$), so \emph{H2 is rejected for the IQP kernel on Speech Commands}. No rejection criterion is met for the Hamiltonian kernel on any dataset.
+\textbf{Comparison with RBF (H2c).} On AG News the IQP kernel beats RBF (13 vs.\ 4 discordant samples, $p=0.049$). On Speech Commands it is significantly worse (0 vs.\ 8, $p=0.008$), so \emph{H2 is rejected for the IQP kernel on Speech Commands}. No rejection criterion is met for the other cases; a non-significant test does not establish equal performance.
 
 \textbf{Shots and noise.} At $n=16$ accuracy generally, though not monotonically, rises with the shot count (Speech IQP: 79.5\% at $10^{2}$, 94.5\% at $10^{5}$). In the Manila noise model $K_{ii}$ drops from 1 to about 0.89 (IQP, 2 qubits), 0.42--0.44 (IQP, 4 qubits), and 0.15 (Hamiltonian, 3 qubits). The noisy 2-qubit IQP classifier reaches 92.5\%, 64.5\%, and 58.5\% on the three datasets, close to its noise-free 5{,}000-shot values (92.5\%, 64.0\%, 57.0\%); the low values come from using two components.
 
-\section{Discussion}
-Kernel variance decreases with the qubit count for both maps and all three datasets, and a small bandwidth keeps it well above the 5{,}000-shot floor. There is no consistent advantage over RBF: the two McNemar results below 0.05 go in opposite directions, each comes from one 200-sample test set, and six such tests were run without multiplicity correction.
+\section{Discussion and Conclusion}
+A small bandwidth keeps the kernel spread well above the shot-noise floor on all datasets. At 5{,}000 shots the models compare with exact RBF as follows.
 
-\textbf{Limitations.} The $\lambda$ and $\gamma$ grids have four values, and the exact Fashion-MNIST winners at $n=16$ sit at the lowest. Eight of the nine duplicate Speech pairs span two folds, which can slightly bias model selection; no test clip is identical to a training clip. These notebooks contain no hardware run; a separate earlier implementation was run on \texttt{ibm\_marrakesh} (branch \texttt{experimentation}), and its numbers are not used here.
+\textbf{Fashion-MNIST:} RBF 96.0\%, Hamiltonian 95.5\%, $ZZ$ (IQP) 94.5\%, with no significant difference. \textbf{AG News:} $ZZ$ 79.5\%, RBF 75.0\%, Hamiltonian 74.5\%; only the $ZZ$ gain is below 0.05 ($p=0.049$). \textbf{Speech Commands:} RBF 96.5\%, Hamiltonian 94.5\%, $ZZ$ 92.5\%; only the $ZZ$ shortfall is significant ($p=0.008$).
 
-\textbf{Reproducibility.} AG News and Speech Commands were computed in full. The Fashion-MNIST notebook was run with \texttt{RECOMPUTE=False}: its sweep tables are loaded from stored results, and only the statistics, three two-component refits, and circuit checks were recomputed. Its sample was built from the official files because the OpenML loader failed with pandas~3. Python 3.12, Qiskit 2.6.2, Aer 0.17.2, scikit-learn 1.8.0, \texttt{pylatexenc}.
+Overall, no model is best on every dataset. RBF is best on two of three and needs no circuits. The Hamiltonian kernel never differs significantly from RBF, but its map needs eight times the CX gates of $ZZ$ at $n=16$ and loses most of its self-overlap in the noise model. The $ZZ$ kernel is cheaper, but its result depends on the dataset. We find no consistent quantum advantage.
+
+\textbf{Limitations.} Each result uses one 200-sample test set, and six McNemar tests were run without multiplicity correction. The grids have four values, and the exact Fashion-MNIST winners at $n=16$ sit at the lowest. Eight of the nine duplicate Speech pairs span two folds; no test clip is identical to a training clip. No hardware was used here; a separate earlier implementation was run on \texttt{ibm\_marrakesh} (branch \texttt{experimentation}).
+
+\textbf{Future directions.} (i) Finer, wider $\lambda$ and $\gamma$ grids; (ii) repeated splits with multiplicity correction, to test whether the AG News and Speech differences persist; (iii) Speech Commands without duplicates; (iv) a shallower Hamiltonian map, since 10 instead of 40 Trotter steps changed accuracy by at most 0.5 points with a quarter of the gates; (v) IBM hardware runs at 2--3 qubit counts with a current calibration.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
